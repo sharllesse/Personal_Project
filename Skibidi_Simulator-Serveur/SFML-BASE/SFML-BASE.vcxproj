@@ -137,13 +137,15 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Clients.cpp" />
+    <ClCompile Include="Server_Network.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="Tools.cpp" />
-    <ClCompile Include="Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Clients.h" />
+    <ClInclude Include="Server_Network.h" />
     <ClInclude Include="Tools.h" />
-    <ClInclude Include="Vector.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

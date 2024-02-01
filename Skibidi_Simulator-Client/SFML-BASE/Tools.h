@@ -1,8 +1,8 @@
 #pragma once
 
 #include "SFML/Audio.hpp"
-#include "SFML/Graphics.hpp"
 #include "SFML/Network.hpp"
+#include "SFML/Graphics.hpp"
 
 #include <string>
 #include <fstream>
@@ -36,23 +36,17 @@ namespace Tools
 	}
 
 	// POINT/CIRCLE
-	bool point_circle(sf::Vector2f _mpos, sf::Vector2f _cpos, float _r);
+	bool point_circle(sf::Vector2<float> _mpos, sf::Vector2<float> _cpos, float _r);
 
 	// CIRCLE/CIRCLE
-	bool circle_circle(sf::Vector2f _c1pos, float _c1r, sf::Vector2f _c2pos, float _c2r);
+	bool circle_circle(sf::Vector2<float> _c1pos, float _c1r, sf::Vector2<float> _c2pos, float _c2r);
 
 	// POINT/RECTANGLE
-	bool point_rect(sf::Vector2f _mpos, sf::FloatRect _rect);
+	bool point_rect(sf::Vector2<float> _mpos, sf::FloatRect _rect);
 
 	// RECTANGLE/RECTANGLE
 	bool rect_rect(sf::FloatRect _rect1, sf::FloatRect _rect2);
 
 	// CIRCLE/RECTANGLE
-	bool circle_rect(sf::Vector2f cpos, float radius, sf::FloatRect rect);
-
-	float get_distance(sf::Vector2f a_, sf::Vector2f b_);
-
-	sf::Vector2f normalize(sf::Vector2f v);
-
-	float get_norme(sf::Vector2f a);
+	bool circle_rect(sf::Vector2<float> cpos, float radius, sf::FloatRect rect);
 }

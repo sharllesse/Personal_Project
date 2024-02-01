@@ -13,7 +13,7 @@ void Tools::restart_clock()
 	m_times = m_clocks.restart();
 }
 
-bool Tools::point_circle(sf::Vector2f _mpos, sf::Vector2f _cpos, float _r)
+bool Tools::point_circle(sf::Vector2<float> _mpos, sf::Vector2<float> _cpos, float _r)
 {
 	// get distance between the point and circle's center
 	// using the Pythagorean Theorem
@@ -30,7 +30,7 @@ bool Tools::point_circle(sf::Vector2f _mpos, sf::Vector2f _cpos, float _r)
 	return false;
 }
 
-bool Tools::circle_circle(sf::Vector2f _c1pos, float _c1r, sf::Vector2f _c2pos, float _c2r)
+bool Tools::circle_circle(sf::Vector2<float> _c1pos, float _c1r, sf::Vector2<float> _c2pos, float _c2r)
 {
 	// get distance between the circle's centers
 	// use the Pythagorean Theorem to compute the distance
@@ -46,7 +46,7 @@ bool Tools::circle_circle(sf::Vector2f _c1pos, float _c1r, sf::Vector2f _c2pos, 
 	return false;
 }
 
-bool Tools::point_rect(sf::Vector2f _mpos, sf::FloatRect _rect)
+bool Tools::point_rect(sf::Vector2<float> _mpos, sf::FloatRect _rect)
 {
 	// is the point inside the rectangle's bounds?
 	if (_mpos.x >= _rect.left &&        // right of the left edge AND
@@ -72,7 +72,7 @@ bool Tools::rect_rect(sf::FloatRect _rect1, sf::FloatRect _rect2)
 	return false;
 }
 
-bool Tools::circle_rect(sf::Vector2f cpos, float radius, sf::FloatRect rect)
+bool Tools::circle_rect(sf::Vector2<float> cpos, float radius, sf::FloatRect rect)
 {
 	// temporary variables to set edges for testing
 	float testX = cpos.x;
@@ -94,25 +94,4 @@ bool Tools::circle_rect(sf::Vector2f cpos, float radius, sf::FloatRect rect)
 		return true;
 	}
 	return false;
-}
-
-float Tools::get_distance(sf::Vector2f a_, sf::Vector2f b_)
-{
-	return sqrt((b_.x - a_.x) * (b_.x - a_.x) + (b_.y - a_.y) * (b_.y - a_.y));
-}
-
-sf::Vector2f Tools::normalize(sf::Vector2f v)
-{
-	if (v == sf::Vector2f())
-		return sf::Vector2f();
-	else
-		return v / Tools::get_norme(v);
-}
-
-float Tools::get_norme(sf::Vector2f a)
-{
-	if (a == sf::Vector2f())
-		return 0.f;
-	else
-		return sqrt(a.x * a.x + a.y * a.y);
 }

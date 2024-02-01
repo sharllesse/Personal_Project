@@ -2,8 +2,7 @@
 
 #include "SFML/Audio.hpp"
 #include "SFML/Network.hpp"
-
-#include "Vector.h"
+#include "SFML/Graphics.hpp"
 
 #include <string>
 #include <fstream>
