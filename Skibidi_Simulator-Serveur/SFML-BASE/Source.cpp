@@ -1,23 +1,12 @@
-#include "menu.h"
+#include "Tools.h"
 
 int main()
 {
     sf::RenderWindow window(sf::VideoMode(1280, 720), "Arkanoid");
-    
-    game MainGame;
-
-    menu MainMenu;
-
-    changeState(MENU);
-
-    //Init
-    initTools(window);
-
-  
 
     while (window.isOpen())
     {
-        restartClock();
+        Tools::restart_clock();
         sf::Event event;
         while (window.pollEvent(event))
         {
@@ -25,19 +14,7 @@ int main()
                 window.close();
         }
 
-        //Update
-        if (GetState() == GAME)
-            MainGame.update();
-        else if (GetState() == MENU)
-            MainMenu.update(window);
-            
-
-        //Display
         window.clear();
-        if (GetState() == GAME)
-            MainGame.draw(window);
-        else if (GetState() == MENU)
-            MainMenu.display(window);
 
         window.display();
     }
