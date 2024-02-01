@@ -3,6 +3,19 @@
 
 class Clients
 {
+public:
+	enum INFO_TYPE_CLIENT_SIDE
+	{
+		ITCNULL = -1,
+		TRANSFORM
+	};
+
+	enum INFO_TYPE_SERVER_SIDE
+	{
+		ITSNULL = -1,
+		CLIENT_INFORMATION,
+		JOIN_INFORMATION
+	};
 private:
 	struct client_Information
 	{
@@ -12,7 +25,8 @@ private:
 	};
 public:
 	Clients();
-	Clients(sf::Vector2f _position, float _speed);
+	Clients(std::string _name, sf::Vector2f _position, float _speed);
+	Clients(std::string _name, unsigned short _ID, std::string _IP);
 	~Clients();
 
 	sf::Vector2f m_position;
