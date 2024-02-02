@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <concepts>
 #include <thread>
+#include <mutex>
 
 #define KEY(_key) sf::Keyboard::isKeyPressed(sf::Keyboard::_key)
 #define MOUSE(_key) sf::Mouse::isButtonPressed(sf::Mouse::_key)

@@ -1,6 +1,6 @@
 #include "Clients.h"
 
-unsigned short get_random_ID(std::vector<std::unique_ptr<Clients>>& _clients, std::unique_ptr<Clients>& _main_client)
+unsigned short get_random_ID(std::list<std::unique_ptr<Clients>>& _clients, std::unique_ptr<Clients>& _main_client)
 {
 	unsigned short tmp_int = Tools::rand(10u, 10000u);
 
@@ -22,7 +22,7 @@ int main()
 
 	float m_sending_timer(0.f);
 
-	std::vector<std::unique_ptr<Clients>> m_clients;
+	std::list<std::unique_ptr<Clients>> m_clients;
 
 	if (m_listener.listen(8000u) == sf::Socket::Done)
 	{
@@ -117,23 +117,56 @@ int main()
 
 		m_sending_timer += Tools::get_delta_time();
 
-		if (m_sending_timer > 0.00833333f)
+		if (static_cast<unsigned>(m_clients.size()))
 		{
-			sf::Packet m_client_packet;
+			if (m_sending_timer > 0.00833333f)
+			{
+				bool tmp_put_one_time(false);
 
-			m_client_packet << Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
+				sf::Packet m_client_packet;
+				sf::Packet disconnected_packet;
 
-			std::for_each(m_clients.begin(), m_clients.end(), [&m_client_packet](std::unique_ptr<Clients>& _client)
+				m_client_packet << Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
+
+				std::for_each(m_clients.begin(), m_clients.end(), [&m_client_packet](std::unique_ptr<Clients>& _client)
+					{
+						m_client_packet << _client->m_client_information.m_ID << _client->m_position;
+					});
+
+				for (auto client = m_clients.begin(); client != m_clients.end();)
 				{
-					m_client_packet << _client->m_client_information.m_ID << _client->m_position;
-				});
+					sf::Socket::Status tmp_socket_statue((*client)->m_client_information.m_socket->send(m_client_packet));
+					if (tmp_socket_statue == sf::Socket::Disconnected || tmp_socket_statue == sf::Socket::Error)
+					{
+						if (!tmp_put_one_time)
+							disconnected_packet << Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION;
 
-			std::for_each(m_clients.begin(), m_clients.end(), [&](std::unique_ptr<Clients>& _client)
+						disconnected_packet << (*client)->m_client_information.m_ID;
+
+						tmp_put_one_time = true;
+
+						m_selector.remove(*(*client)->m_client_information.m_socket);
+						(*client)->m_client_information.m_socket->disconnect();
+
+						client = m_clients.erase(client);
+					}
+					else
+					{
+						//SEND OTHER INFORMATION
+						client++;
+					}
+				}
+
+				if (!disconnected_packet.endOfPacket())
 				{
-					_client->m_client_information.m_socket->send(m_client_packet);
-				});
+					std::for_each(m_clients.begin(), m_clients.end(), [&disconnected_packet](std::unique_ptr<Clients>& _client)
+						{
+							_client->m_client_information.m_socket->send(disconnected_packet);
+						});
+				}
 
-			m_sending_timer = 0.f;
+				m_sending_timer = 0.f;
+			}
 		}
 	}
 

@@ -1,29 +1,258 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f)
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false)
 {
 	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
 	m_client_information.m_ID = 0u;
 	m_client_information.m_IP = "";
+	m_client_information.m_disconnected = false;
 }
 
 Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
-	m_name(_name), m_position(_position), m_speed(_speed)
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false)
 {
 	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
 	m_client_information.m_ID = 0u;
 	m_client_information.m_IP = "";
+	m_client_information.m_disconnected = false;
+
+    m_all_clients.setSize(sf::Vector2f(50, 50));
+
+	m_receive_thread = std::thread(&Clients::receive, this);
 }
 
 Clients::Clients(std::string _name, unsigned short _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f)
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false)
 {
 	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
 	m_client_information.m_ID = _ID;
 	m_client_information.m_IP = _IP;
+	m_client_information.m_disconnected = false;
 }
 
 Clients::~Clients()
 {
+    m_game_is_finish = true;
+
+    if (m_receive_thread.joinable())
+        m_receive_thread.join();
+
+    m_selector.clear();
+
+    m_clients.clear();
+}
+
+bool Clients::connect(std::string _IP, unsigned short _port, float _time_out)
+{
+    if (this->m_client_information.m_socket->connect(_IP, _port, sf::seconds(_time_out)) == sf::Socket::Done)
+    {
+        sf::Packet send_packet;
+        sf::Packet receive_packet;
+
+        this->m_client_information.m_IP = this->m_client_information.m_socket->getRemoteAddress().getLocalAddress().toString();
+
+        send_packet << this->m_name << this->m_client_information.m_IP;
+
+        if (this->m_client_information.m_socket->send(send_packet) == sf::Socket::Done)
+        {
+            if (this->m_client_information.m_socket->receive(receive_packet) == sf::Socket::Done)
+            {
+                INT_TYPE tmp_client_size(0);
+
+                std::string tmp_name("");
+                unsigned short tmp_ID(0u);
+                std::string tmp_IP("");
+
+                receive_packet >> this->m_client_information.m_ID >> tmp_client_size;
+
+                for (int i = 0; i < tmp_client_size; i++)
+                {
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
+                    this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
+                }
+
+                this->m_client_information.m_socket->setBlocking(false);
+                this->m_selector.add(*this->m_client_information.m_socket);
+
+                return true;
+            }
+            else
+            {
+                std::cout << "Failed to receive the ID." << std::endl;
+                return false;
+            }
+        }
+        else
+        {
+            std::cout << "Failed to send the name and the IP." << std::endl;
+            return false;
+        }
+    }
+}
+
+void Clients::clients_information(sf::Packet& _packet)
+{
+    INT_TYPE tmp_client_cout(0);
+
+    unsigned short tmp_ID(0u);
+    sf::Vector2f tmp_position;
+
+    _packet >> tmp_client_cout;
+
+    for (auto client = m_clients.begin(); client != m_clients.end();)
+    {
+        _packet >> tmp_ID;
+
+        if (tmp_ID != this->m_client_information.m_ID)
+        {
+            _packet >> (*client)->m_position;
+
+            client++;
+        }
+        else
+        {
+            _packet >> tmp_position;
+        }
+
+        tmp_client_cout--;
+    }
+
+    if (tmp_client_cout != 0)
+        _packet >> tmp_ID >> tmp_position;
+}
+
+void Clients::clients_connected(sf::Packet& _packet)
+{
+    this->m_delete_client.lock();
+
+    this->m_clients.clear();
+
+    INT_TYPE tmp_client_count(0);
+
+    std::string tmp_name("");
+    unsigned short tmp_ID(0u);
+    std::string tmp_IP("");
+
+    _packet >> tmp_client_count;
+
+    for (int i = 0; i < tmp_client_count; i++)
+    {
+        _packet >> tmp_name >> tmp_ID >> tmp_IP;
+
+        if (this->m_client_information.m_ID != tmp_ID)
+            this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
+    }
+
+    _packet.clear();
+
+    this->m_delete_client.unlock();
+}
+
+void Clients::clients_disconnected(sf::Packet& _packet)
+{
+    while (!_packet.endOfPacket())
+    {
+        unsigned short tmp_ID(0u);
+
+        _packet >> tmp_ID;
+
+        this->m_clients.erase(std::remove_if(this->m_clients.begin(), this->m_clients.end(), [tmp_ID](std::unique_ptr<Clients>& _client)
+            {
+                if (_client->m_client_information.m_ID == tmp_ID)
+                    return true;
+                else
+                    return false;
+            }));
+    }
+}
+
+void Clients::receive()
+{
+    while (!this->m_game_is_finish)
+    {
+        if (this->m_selector.wait(sf::seconds(0.001f)))
+        {
+            if (this->m_selector.isReady(*this->m_client_information.m_socket))
+            {
+                sf::Packet tmp_receive_packet;
+                if (this->m_client_information.m_socket->receive(tmp_receive_packet) == sf::Socket::Done)
+                {
+                    Clients::INFO_TYPE_SERVER_SIDE tmp_info_type(Clients::INFO_TYPE_SERVER_SIDE::ITSNULL);
+
+                    tmp_receive_packet >> tmp_info_type;
+
+                    if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION)
+                    {
+                        this->clients_information(tmp_receive_packet);
+                    }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION)
+                    {
+                        this->clients_connected(tmp_receive_packet);
+                    }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION)
+                    {
+                        this->clients_disconnected(tmp_receive_packet);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Clients::send()
+{
+    this->m_sending_timer += Tools::get_delta_time();
+
+    if (this->m_sending_timer > 0.00833333f)
+    {
+        sf::Packet sending_transfrom_packet;
+
+        sending_transfrom_packet << Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM << this->m_position;
+
+        this->m_client_information.m_socket->send(sending_transfrom_packet);
+
+        this->m_sending_timer = 0.f;
+    }
+}
+
+void Clients::update(sf::RenderWindow& _window)
+{
+    if (_window.hasFocus())
+    {
+        if (KEY(Z))
+            this->m_position.y -= 200.f * Tools::get_delta_time();
+
+        if (KEY(S))
+            this->m_position.y += 200.f * Tools::get_delta_time();
+
+        if (KEY(Q))
+            this->m_position.x -= 200.f * Tools::get_delta_time();
+
+        if (KEY(D))
+            this->m_position.x += 200.f * Tools::get_delta_time();
+    }
+
+    this->send();
+}
+
+void Clients::draw(sf::RenderWindow& _window)
+{
+    this->m_delete_client.lock();
+
+    this->m_all_clients.setFillColor(sf::Color::White);
+    std::for_each(this->m_clients.begin(), this->m_clients.end(), [&](std::unique_ptr<Clients>& _client)
+        {
+            if (_client->m_client_information.m_ID != this->m_client_information.m_ID)
+            {
+                this->m_all_clients.setPosition(_client->m_position);
+                _window.draw(this->m_all_clients);
+            }
+        });
+
+    this->m_delete_client.unlock();
+
+    this->m_all_clients.setFillColor(sf::Color::Red);
+    this->m_all_clients.setPosition(this->m_position);
+    _window.draw(this->m_all_clients);
 }

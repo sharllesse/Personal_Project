@@ -14,7 +14,8 @@ public:
 	{
 		ITSNULL = -1,
 		CLIENT_INFORMATION,
-		JOIN_INFORMATION
+		JOIN_INFORMATION,
+		DISCONNECTED_INFORMATION
 	};
 private:
 	struct client_Information
@@ -22,6 +23,8 @@ private:
 		std::unique_ptr<sf::TcpSocket> m_socket;
 		unsigned short m_ID;
 		std::string m_IP;
+
+		bool m_disconnected;
 	};
 public:
 	Clients();
