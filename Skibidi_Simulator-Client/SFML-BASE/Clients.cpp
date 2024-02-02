@@ -19,7 +19,13 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
 
     m_all_clients.setSize(sf::Vector2f(50, 50));
 
+    m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
+
 	m_receive_thread = std::thread(&Clients::receive, this);
+
+    m_aim_line = sf::VertexArray(sf::Lines);
+    m_aim_line.append(sf::Vertex(sf::Vector2f(0, 0), sf::Color::Red));
+    m_aim_line.append(sf::Vertex(sf::Vector2f(0, 0), sf::Color::Red));
 }
 
 Clients::Clients(std::string _name, unsigned short _ID, std::string _IP) :
@@ -220,6 +226,8 @@ void Clients::update(sf::RenderWindow& _window)
 {
     if (_window.hasFocus())
     {
+        this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
+
         if (KEY(Z))
             this->m_position.y -= 200.f * Tools::get_delta_time();
 
@@ -231,6 +239,9 @@ void Clients::update(sf::RenderWindow& _window)
 
         if (KEY(D))
             this->m_position.x += 200.f * Tools::get_delta_time();
+
+        this->m_aim_line[0].position = sf::Vector2f(m_position);
+        this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
     }
 
     this->send();
@@ -251,6 +262,8 @@ void Clients::draw(sf::RenderWindow& _window)
         });
 
     this->m_delete_client.unlock();
+
+    _window.draw(this->m_aim_line);
 
     this->m_all_clients.setFillColor(sf::Color::Red);
     this->m_all_clients.setPosition(this->m_position);

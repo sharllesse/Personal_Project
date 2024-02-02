@@ -18,6 +18,8 @@
 #include <stack>
 #include <stdlib.h>
 #include <concepts>
+#include <thread>
+#include <mutex>
 
 #define CONNECTION_FAIL -1
 #define INT_TYPE sf::Int32

@@ -32,9 +32,13 @@ private:
 	float m_sending_timer;
 	bool m_game_is_finish;
 
+	sf::Vector2f m_mouse_position;
+
 	std::list<std::unique_ptr<Clients>> m_clients;
 
 	sf::RectangleShape m_all_clients;
+
+	sf::VertexArray m_aim_line;
 public:
 	Clients();
 	Clients(std::string _name, sf::Vector2f _position, float _speed);
