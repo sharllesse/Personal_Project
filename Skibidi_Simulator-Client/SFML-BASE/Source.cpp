@@ -24,7 +24,9 @@ int main()
 
         window.clear();
 
-        m_client->draw(window);
+        m_client->draw_clients(window);
+
+        m_client->draw_projectiles(window);
 
         window.display();
     }

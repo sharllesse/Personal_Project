@@ -27,6 +27,11 @@
 #define CONNECTION_FAIL -1
 #define INT_TYPE sf::Int32
 
+#define RAD2DEG 57.295779f
+#define DEG2RAD 0.017453f
+
+typedef unsigned short us;
+
 template <typename T>
 concept Out = requires(T a)
 {

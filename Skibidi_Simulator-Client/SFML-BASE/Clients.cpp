@@ -1,7 +1,7 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false)
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f)
 {
 	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
 	m_client_information.m_ID = 0u;
@@ -10,7 +10,7 @@ Clients::Clients() :
 }
 
 Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
-	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false)
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f)
 {
 	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
 	m_client_information.m_ID = 0u;
@@ -18,8 +18,10 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
 	m_client_information.m_disconnected = false;
 
     m_all_clients.setSize(sf::Vector2f(50, 50));
-
     m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
+
+    m_all_projectiles.setRadius(20);
+    m_all_projectiles.setOrigin(sf::Vector2f(20, 20));
 
 	m_receive_thread = std::thread(&Clients::receive, this);
 
@@ -28,8 +30,8 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
     m_aim_line.append(sf::Vertex(sf::Vector2f(0, 0), sf::Color::Red));
 }
 
-Clients::Clients(std::string _name, unsigned short _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false)
+Clients::Clients(std::string _name, us _ID, std::string _IP) :
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f)
 {
 	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
 	m_client_information.m_ID = _ID;
@@ -49,7 +51,7 @@ Clients::~Clients()
     m_clients.clear();
 }
 
-bool Clients::connect(std::string _IP, unsigned short _port, float _time_out)
+bool Clients::connect(std::string _IP, us _port, float _time_out)
 {
     if (this->m_client_information.m_socket->connect(_IP, _port, sf::seconds(_time_out)) == sf::Socket::Done)
     {
@@ -60,14 +62,14 @@ bool Clients::connect(std::string _IP, unsigned short _port, float _time_out)
 
         send_packet << this->m_name << this->m_client_information.m_IP;
 
-        if (this->m_client_information.m_socket->send(send_packet) == sf::Socket::Done)
+        if (this->send_packet(send_packet) == sf::Socket::Done)
         {
-            if (this->m_client_information.m_socket->receive(receive_packet) == sf::Socket::Done)
+            if (this->receive_packet(receive_packet) == sf::Socket::Done)
             {
                 INT_TYPE tmp_client_size(0);
 
                 std::string tmp_name("");
-                unsigned short tmp_ID(0u);
+                us tmp_ID(0u);
                 std::string tmp_IP("");
 
                 receive_packet >> this->m_client_information.m_ID >> tmp_client_size;
@@ -101,8 +103,9 @@ void Clients::clients_information(sf::Packet& _packet)
 {
     INT_TYPE tmp_client_cout(0);
 
-    unsigned short tmp_ID(0u);
+    us tmp_ID(0u);
     sf::Vector2f tmp_position;
+    float tmp_rotation;
 
     _packet >> tmp_client_cout;
 
@@ -112,20 +115,20 @@ void Clients::clients_information(sf::Packet& _packet)
 
         if (tmp_ID != this->m_client_information.m_ID)
         {
-            _packet >> (*client)->m_position;
+            _packet >> (*client)->m_position >> (*client)->m_rotation;
 
             client++;
         }
         else
         {
-            _packet >> tmp_position;
+            _packet >> tmp_position >> tmp_rotation;
         }
 
         tmp_client_cout--;
     }
 
     if (tmp_client_cout != 0)
-        _packet >> tmp_ID >> tmp_position;
+        _packet >> tmp_ID >> tmp_position >> tmp_rotation;
 }
 
 void Clients::clients_connected(sf::Packet& _packet)
@@ -137,7 +140,7 @@ void Clients::clients_connected(sf::Packet& _packet)
     INT_TYPE tmp_client_count(0);
 
     std::string tmp_name("");
-    unsigned short tmp_ID(0u);
+    us tmp_ID(0u);
     std::string tmp_IP("");
 
     _packet >> tmp_client_count;
@@ -157,9 +160,11 @@ void Clients::clients_connected(sf::Packet& _packet)
 
 void Clients::clients_disconnected(sf::Packet& _packet)
 {
+    this->m_delete_client.lock();
+
     while (!_packet.endOfPacket())
     {
-        unsigned short tmp_ID(0u);
+        us tmp_ID(0u);
 
         _packet >> tmp_ID;
 
@@ -170,6 +175,25 @@ void Clients::clients_disconnected(sf::Packet& _packet)
                 else
                     return false;
             }));
+    }
+
+    this->m_delete_client.unlock();
+}
+
+void Clients::projectiles_information(sf::Packet& _packet)
+{
+    int projectiles_shooted(0);
+
+    _packet >> projectiles_shooted;
+
+    for (int i = 0; i < projectiles_shooted; i++)
+    {
+        m_projectiles.push_back(std::make_unique<Projectile>());
+    }
+
+    for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end(); projectile++)
+    {
+        _packet >> (*projectile)->m_player_ID >> (*projectile)->m_position;
     }
 }
 
@@ -182,7 +206,7 @@ void Clients::receive()
             if (this->m_selector.isReady(*this->m_client_information.m_socket))
             {
                 sf::Packet tmp_receive_packet;
-                if (this->m_client_information.m_socket->receive(tmp_receive_packet) == sf::Socket::Done)
+                if (this->receive_packet(tmp_receive_packet) == sf::Socket::Done)
                 {
                     Clients::INFO_TYPE_SERVER_SIDE tmp_info_type(Clients::INFO_TYPE_SERVER_SIDE::ITSNULL);
 
@@ -200,6 +224,10 @@ void Clients::receive()
                     {
                         this->clients_disconnected(tmp_receive_packet);
                     }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::PROJECTILES_INFORMATION)
+                    {
+                        this->projectiles_information(tmp_receive_packet);
+                    }
                 }
             }
         }
@@ -213,17 +241,39 @@ void Clients::send()
     if (this->m_sending_timer > 0.00833333f)
     {
         sf::Packet sending_transfrom_packet;
+        sf::Packet sending_shoot_packet;
 
-        sending_transfrom_packet << Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM << this->m_position;
+        sending_transfrom_packet << Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM << this->m_position << this->m_rotation;
 
-        this->m_client_information.m_socket->send(sending_transfrom_packet);
+        this->send_packet(sending_transfrom_packet);
+
+        if (m_shooted)
+        {
+            sending_shoot_packet << Clients::INFO_TYPE_CLIENT_SIDE::SHOOT << 1 << 0.f << m_client_information.m_ID << 200.f << this->m_position << this->m_rotation;
+
+            this->send_packet(sending_shoot_packet);
+
+            m_shooted = false;
+        }
 
         this->m_sending_timer = 0.f;
     }
 }
 
+sf::Socket::Status Clients::send_packet(sf::Packet& _packet)
+{
+    return this->m_client_information.m_socket->send(_packet);
+}
+
+sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
+{
+    return this->m_client_information.m_socket->receive(_packet);
+}
+
 void Clients::update(sf::RenderWindow& _window)
 {
+    m_shoot_timer += Tools::get_delta_time();
+
     if (_window.hasFocus())
     {
         this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
@@ -240,6 +290,15 @@ void Clients::update(sf::RenderWindow& _window)
         if (KEY(D))
             this->m_position.x += 200.f * Tools::get_delta_time();
 
+        if (MOUSE(Left) && m_shoot_timer > 0.2f)
+        {
+            m_shooted = true;
+
+            m_shoot_timer = 0.f;
+        }
+
+        m_rotation = std::atan2(m_mouse_position.y - m_position.y, m_mouse_position.x - m_position.x) * RAD2DEG;
+
         this->m_aim_line[0].position = sf::Vector2f(m_position);
         this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
     }
@@ -247,18 +306,16 @@ void Clients::update(sf::RenderWindow& _window)
     this->send();
 }
 
-void Clients::draw(sf::RenderWindow& _window)
+void Clients::draw_clients(sf::RenderWindow& _window)
 {
     this->m_delete_client.lock();
 
     this->m_all_clients.setFillColor(sf::Color::White);
     std::for_each(this->m_clients.begin(), this->m_clients.end(), [&](std::unique_ptr<Clients>& _client)
         {
-            if (_client->m_client_information.m_ID != this->m_client_information.m_ID)
-            {
-                this->m_all_clients.setPosition(_client->m_position);
-                _window.draw(this->m_all_clients);
-            }
+            this->m_all_clients.setPosition(_client->m_position);
+            this->m_all_clients.setRotation(_client->m_rotation);
+            _window.draw(this->m_all_clients);
         });
 
     this->m_delete_client.unlock();
@@ -267,5 +324,15 @@ void Clients::draw(sf::RenderWindow& _window)
 
     this->m_all_clients.setFillColor(sf::Color::Red);
     this->m_all_clients.setPosition(this->m_position);
+    this->m_all_clients.setRotation(this->m_rotation);
     _window.draw(this->m_all_clients);
+}
+
+void Clients::draw_projectiles(sf::RenderWindow& _window)
+{
+    std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles) 
+        {
+            m_all_projectiles.setPosition(_projectiles->m_position);
+            _window.draw(m_all_projectiles);
+        });
 }

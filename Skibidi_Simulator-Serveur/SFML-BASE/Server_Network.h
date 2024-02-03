@@ -1,5 +1,6 @@
 #pragma once
 #include "Clients.h"
+#include "Projectile.h"
 
 #define Server Server_Network::get_instance()
 
@@ -15,26 +16,28 @@ private:
 
 	std::thread m_verify_connection_thread;
 
-	std::mutex m_verify_connection_mutex;
-
 	bool m_server_closed;
 
 	float m_sending_timer;
 
 	std::list<std::unique_ptr<Clients>> m_clients;
+	std::list<std::unique_ptr<Projectile>> m_projectiles;
+
+	unsigned m_projectiles_shooted;
 public:
 	~Server_Network();
 
 	static std::unique_ptr<Server_Network>& get_instance();
 
-	unsigned short get_random_ID();
+	us get_random_ID();
 
 	void verify_connection();
 
 	void receive();
-
 	void send();
 
 	void update();
+
+	void update_projectiles();
 };
 

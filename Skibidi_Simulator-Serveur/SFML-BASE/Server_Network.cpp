@@ -1,7 +1,7 @@
 #include "Server_Network.h"
 
 Server_Network::Server_Network() :
-	m_sending_timer(0.f), m_server_closed(false)
+	m_sending_timer(0.f), m_server_closed(false), m_projectiles_shooted(0u)
 {
 	if (m_listener.listen(8000u) == sf::Socket::Done)
 	{
@@ -30,9 +30,9 @@ std::unique_ptr<Server_Network>& Server_Network::get_instance()
 	return m_instance_server_network;
 }
 
-unsigned short Server_Network::get_random_ID()
+us Server_Network::get_random_ID()
 {
-	unsigned short tmp_int = Tools::rand(10u, 10000u);
+	us tmp_int = Tools::rand(10u, 10000u);
 
 	for (auto client = m_clients.begin(); client != m_clients.end();)
 	{
@@ -61,7 +61,7 @@ void Server_Network::verify_connection()
 					sf::Packet join_packet;
 					sf::Packet receive_packet;
 
-					if (tmp_client->m_client_information.m_socket->receive(receive_packet) == sf::Socket::Done)
+					if (tmp_client->receive_packet(receive_packet) == sf::Socket::Done)
 					{
 						receive_packet >> tmp_client->m_name >> tmp_client->m_client_information.m_IP;
 
@@ -74,10 +74,8 @@ void Server_Network::verify_connection()
 								send_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
 							});
 
-						if (tmp_client->m_client_information.m_socket->send(send_packet) == sf::Socket::Done)
+						if (tmp_client->send_packet(send_packet) == sf::Socket::Done)
 						{
-							m_verify_connection_mutex.lock();
-
 							std::cout << "Player [NAME][" << tmp_client->m_name << "] [IP][" << tmp_client->m_client_information.m_IP << "] [ID][" << tmp_client->m_client_information.m_ID << "] connected" << std::endl;
 
 							tmp_client->m_client_information.m_socket->setBlocking(false);
@@ -92,10 +90,8 @@ void Server_Network::verify_connection()
 
 							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::unique_ptr<Clients>& _client)
 								{
-									_client->m_client_information.m_socket->send(join_packet);
+									_client->send_packet(join_packet);
 								});
-
-							m_verify_connection_mutex.unlock();
 						}
 						else
 						{
@@ -129,7 +125,7 @@ void Server_Network::receive()
 				if (m_selector.isReady(*_client->m_client_information.m_socket))
 				{
 					sf::Packet receive_packet;
-					if (_client->m_client_information.m_socket->receive(receive_packet) == sf::Socket::Done)
+					if (_client->receive_packet(receive_packet) == sf::Socket::Done)
 					{
 						Clients::INFO_TYPE_CLIENT_SIDE tmp_info_type(Clients::INFO_TYPE_CLIENT_SIDE::ITCNULL);
 
@@ -137,7 +133,25 @@ void Server_Network::receive()
 
 						if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM)
 						{
-							receive_packet >> _client->m_position;
+							receive_packet >> _client->m_position >> _client->m_rotation;
+						}
+						else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::SHOOT)
+						{
+							int tmp_bullet_count(0);
+							float tmp_spread(0.f);
+							us tmp_id(0u);
+							float tmp_speed(0.f);
+							sf::Vector2f tmp_start_position;
+							float tmp_rotation(0.f);
+
+							receive_packet >> tmp_bullet_count >> tmp_spread >> tmp_id >> tmp_speed >> tmp_start_position >> tmp_rotation;
+
+							for (int i = 0; i < tmp_bullet_count; i++)
+							{
+								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::rand(tmp_rotation - tmp_spread, tmp_rotation - tmp_spread), tmp_start_position, tmp_id));
+							}
+
+							m_projectiles_shooted += tmp_bullet_count;
 						}
 					}
 				}
@@ -155,25 +169,33 @@ void Server_Network::send()
 		{
 			bool tmp_put_one_time(false);
 
-			sf::Packet m_client_packet;
-			sf::Packet disconnected_packet;
+			sf::Packet tmp_client_packet;
+			sf::Packet tmp_disconnected_packet;
+			sf::Packet tmp_projectiles_packet;
 
-			m_client_packet << Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
+			tmp_client_packet << Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
 
-			std::for_each(m_clients.begin(), m_clients.end(), [&m_client_packet](std::unique_ptr<Clients>& _client)
+			std::for_each(m_clients.begin(), m_clients.end(), [&tmp_client_packet](std::unique_ptr<Clients>& _client)
 				{
-					m_client_packet << _client->m_client_information.m_ID << _client->m_position;
+					tmp_client_packet << _client->m_client_information.m_ID << _client->m_position << _client->m_rotation;
+				});
+
+			tmp_projectiles_packet << Clients::INFO_TYPE_SERVER_SIDE::PROJECTILES_INFORMATION << m_projectiles_shooted;
+
+			std::for_each(m_projectiles.begin(), m_projectiles.end(), [&tmp_projectiles_packet](std::unique_ptr<Projectile>& _projectile)
+				{
+					tmp_projectiles_packet << _projectile->m_player_ID << _projectile->m_position;
 				});
 
 			for (auto client = m_clients.begin(); client != m_clients.end();)
 			{
-				sf::Socket::Status tmp_socket_statue((*client)->m_client_information.m_socket->send(m_client_packet));
+				sf::Socket::Status tmp_socket_statue((*client)->send_packet(tmp_client_packet));
 				if (tmp_socket_statue == sf::Socket::Disconnected || tmp_socket_statue == sf::Socket::Error)
 				{
 					if (!tmp_put_one_time)
-						disconnected_packet << Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION;
+						tmp_disconnected_packet << Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION;
 
-					disconnected_packet << (*client)->m_client_information.m_ID;
+					tmp_disconnected_packet << (*client)->m_client_information.m_ID;
 
 					tmp_put_one_time = true;
 
@@ -186,20 +208,22 @@ void Server_Network::send()
 				}
 				else
 				{
-					//SEND OTHER INFORMATION
+					(*client)->send_packet(tmp_projectiles_packet);
+
 					client++;
 				}
 			}
 
-			if (!disconnected_packet.endOfPacket())
+			if (!tmp_disconnected_packet.endOfPacket())
 			{
-				std::for_each(m_clients.begin(), m_clients.end(), [&disconnected_packet](std::unique_ptr<Clients>& _client)
+				std::for_each(m_clients.begin(), m_clients.end(), [&tmp_disconnected_packet](std::unique_ptr<Clients>& _client)
 					{
-						_client->m_client_information.m_socket->send(disconnected_packet);
+						_client->send_packet(tmp_disconnected_packet);
 					});
 			}
 
 			m_sending_timer = 0.f;
+			m_projectiles_shooted = 0u;
 		}
 	}
 }
@@ -208,9 +232,15 @@ void Server_Network::update()
 {
 	this->receive();
 
-	m_verify_connection_mutex.lock();
+	this->update_projectiles();
 
 	this->send();
-	
-	m_verify_connection_mutex.unlock();
+}
+
+void Server_Network::update_projectiles()
+{
+	std::for_each(m_projectiles.begin(), m_projectiles.end(), [](std::unique_ptr<Projectile>& _projectiles)
+		{
+			_projectiles->m_position += _projectiles->m_velocity * Tools::get_delta_time();
+		});
 }
