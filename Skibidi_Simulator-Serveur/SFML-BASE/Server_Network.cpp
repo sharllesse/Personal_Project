@@ -147,9 +147,7 @@ void Server_Network::receive()
 							receive_packet >> tmp_bullet_count >> tmp_spread >> tmp_id >> tmp_speed >> tmp_start_position >> tmp_rotation;
 
 							for (int i = 0; i < tmp_bullet_count; i++)
-							{
-								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::rand(tmp_rotation - tmp_spread, tmp_rotation - tmp_spread), tmp_start_position, tmp_id));
-							}
+								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::rand(tmp_rotation - tmp_spread, tmp_rotation + tmp_spread), tmp_start_position, tmp_id));
 
 							m_projectiles_shooted += tmp_bullet_count;
 						}
@@ -182,10 +180,15 @@ void Server_Network::send()
 
 			tmp_projectiles_packet << Clients::INFO_TYPE_SERVER_SIDE::PROJECTILES_INFORMATION << m_projectiles_shooted;
 
-			std::for_each(m_projectiles.begin(), m_projectiles.end(), [&tmp_projectiles_packet](std::unique_ptr<Projectile>& _projectile)
-				{
-					tmp_projectiles_packet << _projectile->m_player_ID << _projectile->m_position;
-				});
+			for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end();)
+			{
+				tmp_projectiles_packet << (*projectile)->m_player_ID << (*projectile)->m_position << (*projectile)->m_need_to_be_deleted;
+
+				if ((*projectile)->m_need_to_be_deleted)
+					projectile = m_projectiles.erase(projectile);
+				else
+					projectile++;
+			}
 
 			for (auto client = m_clients.begin(); client != m_clients.end();)
 			{
@@ -239,8 +242,17 @@ void Server_Network::update()
 
 void Server_Network::update_projectiles()
 {
-	std::for_each(m_projectiles.begin(), m_projectiles.end(), [](std::unique_ptr<Projectile>& _projectiles)
+	std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles)
 		{
 			_projectiles->m_position += _projectiles->m_velocity * Tools::get_delta_time();
+
+			if (Tools::get_distance(_projectiles->m_start_position, _projectiles->m_position) > 1000)
+				_projectiles->m_need_to_be_deleted = true;
+
+			std::for_each(m_clients.begin(), m_clients.end(), [&_projectiles](std::unique_ptr<Clients>& _client)
+				{
+					if (Tools::circle_circle(_client->m_position, 25, _projectiles->m_position, 10) && !_projectiles->m_need_to_be_deleted && _projectiles->m_player_ID != _client->m_client_information.m_ID)
+						_projectiles->m_need_to_be_deleted = true;
+				});
 		});
 }

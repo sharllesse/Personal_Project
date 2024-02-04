@@ -24,6 +24,7 @@
 #define CONNECTION_FAIL -1
 #define INT_TYPE sf::Int32
 
+#define PI 3.14159265f
 #define RAD2DEG 57.295779f
 #define DEG2RAD 0.017453f
 
@@ -83,7 +84,7 @@ namespace Tools
 	{
 		std::random_device rd;
 		std::mt19937 mt(rd());
-		std::uniform_real_distribution<double> dist(_min, _max + 1);
+		std::uniform_real_distribution<double> dist(_min, _max + ((_min == _max) ? 0 : 1));
 
 		return static_cast<_Type>(dist(mt));
 	}
@@ -102,4 +103,12 @@ namespace Tools
 
 	// CIRCLE/RECTANGLE
 	bool circle_rect(sf::Vector2<float> cpos, float radius, sf::FloatRect rect);
+
+	float get_distance(sf::Vector2f a_, sf::Vector2f b_);
+
+	float get_norme(sf::Vector2f a);
+
+	sf::Vector2f truncate(sf::Vector2f _v, float _m);
+
+	sf::Vector2f normalize(sf::Vector2f v);
 }

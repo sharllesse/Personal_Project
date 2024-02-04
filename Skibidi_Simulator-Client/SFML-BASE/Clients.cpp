@@ -191,9 +191,18 @@ void Clients::projectiles_information(sf::Packet& _packet)
         m_projectiles.push_back(std::make_unique<Projectile>());
     }
 
-    for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end(); projectile++)
+    for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end();)
     {
-        _packet >> (*projectile)->m_player_ID >> (*projectile)->m_position;
+        _packet >> (*projectile)->m_player_ID >> (*projectile)->m_position >> (*projectile)->m_need_to_be_deleted;
+
+        if ((*projectile)->m_need_to_be_deleted)
+        {
+            m_delete_projectiles.lock();
+            projectile = m_projectiles.erase(projectile);
+            m_delete_projectiles.unlock();
+        }
+        else
+            projectile++;
     }
 }
 
@@ -297,7 +306,7 @@ void Clients::update(sf::RenderWindow& _window)
             m_shoot_timer = 0.f;
         }
 
-        m_rotation = std::atan2(m_mouse_position.y - m_position.y, m_mouse_position.x - m_position.x) * RAD2DEG;
+        m_rotation = Tools::get_signed_angle_betweenB(m_mouse_position, m_position) * RAD2DEG;
 
         this->m_aim_line[0].position = sf::Vector2f(m_position);
         this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
@@ -330,9 +339,11 @@ void Clients::draw_clients(sf::RenderWindow& _window)
 
 void Clients::draw_projectiles(sf::RenderWindow& _window)
 {
+    m_delete_projectiles.lock();
     std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles) 
         {
             m_all_projectiles.setPosition(_projectiles->m_position);
             _window.draw(m_all_projectiles);
         });
+    m_delete_projectiles.unlock();
 }

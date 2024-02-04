@@ -105,4 +105,18 @@ namespace Tools
 
 	// CIRCLE/RECTANGLE
 	bool circle_rect(sf::Vector2<float> cpos, float radius, sf::FloatRect rect);
+
+	float get_distance(sf::Vector2f a_, sf::Vector2f b_);
+
+	float get_norme(sf::Vector2f a);
+
+	sf::Vector2f truncate(sf::Vector2f _v, float _m);
+
+	sf::Vector2f normalize(sf::Vector2f v);
+
+	float get_signed_angle_between(sf::Vector2f a, sf::Vector2f b);
+
+	float get_signed_angle_betweenB(sf::Vector2f _a, sf::Vector2f _b);
+
+	float get_angle_between(sf::Vector2f a, sf::Vector2f b);
 }

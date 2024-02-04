@@ -115,3 +115,53 @@ bool Tools::circle_rect(sf::Vector2<float> cpos, float radius, sf::FloatRect rec
 	}
 	return false;
 }
+
+float Tools::get_distance(sf::Vector2f a_, sf::Vector2f b_)
+{
+	return sqrt((b_.x - a_.x) * (b_.x - a_.x) + (b_.y - a_.y) * (b_.y - a_.y));
+}
+
+float Tools::get_norme(sf::Vector2f a)
+{
+	if (a == sf::Vector2f())
+		return 0.f;
+
+	return sqrt(a.x * a.x + a.y * a.y);
+}
+
+sf::Vector2f Tools::truncate(sf::Vector2f _v, float _m)
+{
+	if (_v != sf::Vector2f())
+	{
+		float i = _m / get_norme(_v);
+
+		i = (i > 1.f) ? 1.f : i;
+
+		return _v * i;
+	}
+
+	return _v;
+}
+
+sf::Vector2f Tools::normalize(sf::Vector2f v)
+{
+	if (v == sf::Vector2f())
+		return sf::Vector2f();
+
+	return v / get_norme(v);
+}
+
+float Tools::get_signed_angle_between(sf::Vector2f a, sf::Vector2f b)
+{
+	return atan2f(a.x * b.y - a.y * b.x, a.x * b.x + a.y * b.y);
+}
+
+float Tools::get_signed_angle_betweenB(sf::Vector2f _a, sf::Vector2f _b)
+{
+	return atan2f(_a.y - _b.y, _a.x - _b.x);
+}
+
+float Tools::get_angle_between(sf::Vector2f a, sf::Vector2f b)
+{
+	return fabsf(get_signed_angle_between(a, b));
+}

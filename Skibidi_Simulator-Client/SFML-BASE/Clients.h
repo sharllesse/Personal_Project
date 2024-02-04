@@ -32,6 +32,7 @@ private:
 	sf::SocketSelector m_selector;
 	std::thread m_receive_thread;
 	std::mutex m_delete_client;
+	std::mutex m_delete_projectiles;
 	float m_sending_timer;
 	bool m_game_is_finish;
 
