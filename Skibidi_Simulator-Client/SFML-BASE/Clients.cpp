@@ -258,7 +258,7 @@ void Clients::send()
 
         if (m_shooted)
         {
-            sending_shoot_packet << Clients::INFO_TYPE_CLIENT_SIDE::SHOOT << 1 << 0.f << m_client_information.m_ID << 200.f << this->m_position << this->m_rotation;
+            sending_shoot_packet << Clients::INFO_TYPE_CLIENT_SIDE::SHOOT << 1 << 0.f << m_client_information.m_ID << 1000.f << this->m_position << this->m_rotation;
 
             this->send_packet(sending_shoot_packet);
 
