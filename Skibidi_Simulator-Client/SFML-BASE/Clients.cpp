@@ -97,6 +97,8 @@ bool Clients::connect(std::string _IP, us _port, float _time_out)
             return false;
         }
     }
+
+    return false;
 }
 
 void Clients::clients_information(sf::Packet& _packet)

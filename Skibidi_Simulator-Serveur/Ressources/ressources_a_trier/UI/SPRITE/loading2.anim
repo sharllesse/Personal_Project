@@ -1,0 +1,7 @@
+[path]
+../Ressources/Textures/UI/SPRITE/loading2.png
+[end]
+// Sprite Name | left | top | width | height | Frame | TimeAnim | row
+[config]
+loading2	0	0	140	170	8	0.2		0
+[end]
