@@ -14,5 +14,9 @@ private:
     void virtual pushState(char data);
 
     sf::View m_game_view;
+
+    std::unique_ptr<Server_Network> m_server;
+
+    sf::RectangleShape m_shape;
 };
 

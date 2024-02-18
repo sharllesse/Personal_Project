@@ -1,16 +1,11 @@
 #pragma once
 #include "Clients.h"
 #include "Projectile.h"
-
-#define Server Server_Network::get_instance()
+#include "Console.h"
 
 class Server_Network
 {
 private:
-	Server_Network();
-
-	static inline std::unique_ptr<Server_Network> m_instance_server_network = nullptr;
-
 	sf::TcpListener m_listener;
 	sf::SocketSelector m_selector;
 
@@ -24,10 +19,11 @@ private:
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
 	unsigned m_projectiles_shooted;
-public:
-	~Server_Network();
 
-	static std::unique_ptr<Server_Network>& get_instance();
+	Console m_console;
+public:
+	Server_Network();
+	~Server_Network();
 
 	us get_random_ID();
 
@@ -39,5 +35,7 @@ public:
 	void update();
 
 	void update_projectiles();
+
+	void draw(sf::RenderWindow& _window);
 };
 

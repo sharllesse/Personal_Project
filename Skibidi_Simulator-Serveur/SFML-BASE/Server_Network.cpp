@@ -22,14 +22,6 @@ Server_Network::~Server_Network()
 	m_selector.clear();
 }
 
-std::unique_ptr<Server_Network>& Server_Network::get_instance()
-{
-	if (m_instance_server_network == nullptr)
-		m_instance_server_network = std::unique_ptr<Server_Network>(new Server_Network());
-
-	return m_instance_server_network;
-}
-
 us Server_Network::get_random_ID()
 {
 	us tmp_int = Tools::Rand(10u, 10000u);
@@ -76,7 +68,7 @@ void Server_Network::verify_connection()
 
 						if (tmp_client->send_packet(send_packet) == sf::Socket::Done)
 						{
-							std::cout << "Player [NAME][" << tmp_client->m_name << "] [IP][" << tmp_client->m_client_information.m_IP << "] [ID][" << tmp_client->m_client_information.m_ID << "] connected" << std::endl;
+							m_console.add_message("Player [NAME][" + tmp_client->m_name + "] [IP][" + tmp_client->m_client_information.m_IP + "] [ID][" + std::to_string(tmp_client->m_client_information.m_ID) + "] connected", Console::Message::INFO);
 
 							tmp_client->m_client_information.m_socket->setBlocking(false);
 							m_selector.add(*tmp_client->m_client_information.m_socket);
@@ -202,7 +194,7 @@ void Server_Network::send()
 
 					tmp_put_one_time = true;
 
-					std::cout << "Player [NAME][" << (*client)->m_name << "] [IP][" << (*client)->m_client_information.m_IP << "] [ID][" << (*client)->m_client_information.m_ID << "] disconnected" << std::endl;
+					m_console.add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] disconnected", Console::Message::INFO);
 
 					m_selector.remove(*(*client)->m_client_information.m_socket);
 					(*client)->m_client_information.m_socket->disconnect();
@@ -238,6 +230,8 @@ void Server_Network::update()
 	this->update_projectiles();
 
 	this->send();
+
+	m_console.update();
 }
 
 void Server_Network::update_projectiles()
@@ -255,4 +249,9 @@ void Server_Network::update_projectiles()
 						_projectiles->m_need_to_be_deleted = true;
 				});
 		});
+}
+
+void Server_Network::draw(sf::RenderWindow& _window)
+{
+	m_console.draw(_window, const_cast<sf::View&>(_window.getDefaultView()));
 }

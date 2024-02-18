@@ -1,8 +1,15 @@
 #include "Game.h"
 
-int main()
+#include <Windows.h>
+
+#ifndef _DEBUG
+int WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR lpCmdLine, _In_ int nShowCmd )
 {
-	Game main_game(1920, 1080, "Super Epic Battle Royal", false);
+#else
+int main(int argc, char* argv[])
+{
+#endif // !_DEBUG
+	Game main_game(960, 540, "Server Console", false);
 	main_game.runGame();
 
     return EXIT_SUCCESS;
