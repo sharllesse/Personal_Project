@@ -1,5 +1,4 @@
 #pragma once
-#include "Tools.h"
 #include "Projectile.h"
 
 class Clients
@@ -23,6 +22,20 @@ public:
 private:
 	struct client_Information
 	{
+		client_Information() : 
+			m_IP(""), m_disconnected(false), m_ID(0u)
+		{}
+
+		client_Information(std::string _IP, us _ID) :
+			m_IP(""), m_disconnected(false), m_ID(0u)
+		{}
+
+		client_Information(std::string _IP, us _ID, bool _is_main_client) :
+			m_IP(_IP), m_disconnected(false), m_ID(_ID)
+		{
+			m_socket = std::make_unique<sf::TcpSocket>();
+		}
+
 		std::unique_ptr<sf::TcpSocket> m_socket;
 		us m_ID;
 		std::string m_IP;
@@ -30,9 +43,11 @@ private:
 	};
 
 	sf::SocketSelector m_selector;
+
 	std::thread m_receive_thread;
 	std::mutex m_delete_client;
 	std::mutex m_delete_projectiles;
+
 	float m_sending_timer;
 	bool m_game_is_finish;
 
@@ -69,6 +84,8 @@ public:
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
 	void update(sf::RenderWindow& _window);
+
+	void draw(sf::RenderWindow& _window);
 
 	void draw_clients(sf::RenderWindow& _window);
 	void draw_projectiles(sf::RenderWindow& _window);

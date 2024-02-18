@@ -1,22 +1,13 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f)
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information()
 {
-	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
-	m_client_information.m_ID = 0u;
-	m_client_information.m_IP = "";
-	m_client_information.m_disconnected = false;
 }
 
 Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
-	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f)
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, true)
 {
-	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
-	m_client_information.m_ID = 0u;
-	m_client_information.m_IP = "";
-	m_client_information.m_disconnected = false;
-
     m_all_clients.setSize(sf::Vector2f(50, 50));
     m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
 
@@ -31,12 +22,8 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
 }
 
 Clients::Clients(std::string _name, us _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f)
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID, true)
 {
-	m_client_information.m_socket = std::make_unique<sf::TcpSocket>();
-	m_client_information.m_ID = _ID;
-	m_client_information.m_IP = _IP;
-	m_client_information.m_disconnected = false;
 }
 
 Clients::~Clients()
@@ -247,7 +234,7 @@ void Clients::receive()
 
 void Clients::send()
 {
-    this->m_sending_timer += Tools::get_delta_time();
+    this->m_sending_timer += Tools::getDeltaTime();
 
     if (this->m_sending_timer > 0.00833333f)
     {
@@ -283,23 +270,23 @@ sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
 
 void Clients::update(sf::RenderWindow& _window)
 {
-    m_shoot_timer += Tools::get_delta_time();
+    m_shoot_timer += Tools::getDeltaTime();
 
     if (_window.hasFocus())
     {
         this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
 
         if (KEY(Z))
-            this->m_position.y -= 200.f * Tools::get_delta_time();
+            this->m_position.y -= 200.f * Tools::getDeltaTime();
 
         if (KEY(S))
-            this->m_position.y += 200.f * Tools::get_delta_time();
+            this->m_position.y += 200.f * Tools::getDeltaTime();
 
         if (KEY(Q))
-            this->m_position.x -= 200.f * Tools::get_delta_time();
+            this->m_position.x -= 200.f * Tools::getDeltaTime();
 
         if (KEY(D))
-            this->m_position.x += 200.f * Tools::get_delta_time();
+            this->m_position.x += 200.f * Tools::getDeltaTime();
 
         if (MOUSE(Left) && m_shoot_timer > 0.2f)
         {
@@ -307,14 +294,20 @@ void Clients::update(sf::RenderWindow& _window)
 
             m_shoot_timer = 0.f;
         }
-
-        m_rotation = Tools::get_signed_angle_betweenB(m_mouse_position, m_position) * RAD2DEG;
+        
+        m_rotation = atan2(m_mouse_position.y - m_position.y, m_mouse_position.x - m_position.x) * RAD2DEG;
 
         this->m_aim_line[0].position = sf::Vector2f(m_position);
         this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
     }
 
     this->send();
+}
+
+void Clients::draw(sf::RenderWindow& _window)
+{
+    this->draw_clients(_window);
+    this->draw_projectiles(_window);
 }
 
 void Clients::draw_clients(sf::RenderWindow& _window)

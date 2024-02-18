@@ -1,14 +1,9 @@
-#include "Clients.h"
-#include "Server_Network.h"
+#include "Game.h"
 
 int main()
 {
-	while (true)
-	{
-		Tools::restart_clock();
-
-		Server->update();
-	}
+	Game main_game(1920, 1080, "Super Epic Battle Royal", false);
+	main_game.runGame();
 
     return EXIT_SUCCESS;
 }

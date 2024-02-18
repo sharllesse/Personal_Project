@@ -32,12 +32,12 @@ std::unique_ptr<Server_Network>& Server_Network::get_instance()
 
 us Server_Network::get_random_ID()
 {
-	us tmp_int = Tools::rand(10u, 10000u);
+	us tmp_int = Tools::Rand(10u, 10000u);
 
 	for (auto client = m_clients.begin(); client != m_clients.end();)
 	{
 		if (tmp_int == (*client)->m_client_information.m_ID)
-			tmp_int = Tools::rand(10u, 10000u);
+			tmp_int = Tools::Rand(10u, 10000u);
 		else
 			client++;
 	}
@@ -147,7 +147,7 @@ void Server_Network::receive()
 							receive_packet >> tmp_bullet_count >> tmp_spread >> tmp_id >> tmp_speed >> tmp_start_position >> tmp_rotation;
 
 							for (int i = 0; i < tmp_bullet_count; i++)
-								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::rand(tmp_rotation - tmp_spread, tmp_rotation + tmp_spread), tmp_start_position, tmp_id));
+								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::Rand(tmp_rotation - tmp_spread, tmp_rotation + tmp_spread), tmp_start_position, tmp_id));
 
 							m_projectiles_shooted += tmp_bullet_count;
 						}
@@ -159,7 +159,7 @@ void Server_Network::receive()
 
 void Server_Network::send()
 {
-	m_sending_timer += Tools::get_delta_time();
+	m_sending_timer += Tools::getDeltaTime();
 
 	if (static_cast<unsigned>(m_clients.size()))
 	{
@@ -244,14 +244,14 @@ void Server_Network::update_projectiles()
 {
 	std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles)
 		{
-			_projectiles->m_position += _projectiles->m_velocity * Tools::get_delta_time();
+			_projectiles->m_position += _projectiles->m_velocity * Tools::getDeltaTime();
 
-			if (Tools::get_distance(_projectiles->m_start_position, _projectiles->m_position) > 1000)
+			if (_projectiles->m_start_position.getDistance(_projectiles->m_position) > 1000)
 				_projectiles->m_need_to_be_deleted = true;
 
 			std::for_each(m_clients.begin(), m_clients.end(), [&_projectiles](std::unique_ptr<Clients>& _client)
 				{
-					if (Tools::circle_circle(_client->m_position, 25, _projectiles->m_position, 10) && !_projectiles->m_need_to_be_deleted && _projectiles->m_player_ID != _client->m_client_information.m_ID)
+					if (Tools::Collisions::circle_circle(_client->m_position, 25, _projectiles->m_position, 10) && !_projectiles->m_need_to_be_deleted && _projectiles->m_player_ID != _client->m_client_information.m_ID)
 						_projectiles->m_need_to_be_deleted = true;
 				});
 		});
