@@ -61,9 +61,18 @@ private:
 
 	sf::VertexArray m_aim_line;
 
+	float m_shoot_timer;
+
 	bool m_shooted;
 
-	float m_shoot_timer;
+	sf::Vector2f m_position;
+
+	float m_speed;
+	float m_rotation;
+
+	std::string m_name;
+
+	client_Information m_client_information;
 public:
 	Clients();
 	Clients(std::string _name, sf::Vector2f _position, float _speed);
@@ -90,11 +99,9 @@ public:
 	void draw_clients(sf::RenderWindow& _window);
 	void draw_projectiles(sf::RenderWindow& _window);
 
-	sf::Vector2f m_position;
-	float m_speed;
-	float m_rotation;
-
-	std::string m_name;
-
-	client_Information m_client_information;
+	sf::Vector2f& get_position() { return m_position; }
+	float& get_speed() { return m_speed; }
+	float& get_rotation() { return m_rotation; }
+	std::string& get_name() { return m_name; }
+	client_Information& get_client_information() { return m_client_information; }
 };

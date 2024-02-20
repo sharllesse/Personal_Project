@@ -141,20 +141,28 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Button.cpp" />
     <ClCompile Include="Clients.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Game_State.cpp" />
+    <ClCompile Include="Lobby_State.cpp" />
+    <ClCompile Include="Menu_State.cpp" />
     <ClCompile Include="Network_Tools.cpp" />
+    <ClCompile Include="Options_State.cpp" />
     <ClCompile Include="Projectile.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="State.cpp" />
     <ClCompile Include="Weapon.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Button.h" />
     <ClInclude Include="Clients.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="Game_State.h" />
+    <ClInclude Include="Lobby_State.h" />
+    <ClInclude Include="Menu_State.h" />
     <ClInclude Include="Network_Tools.h" />
+    <ClInclude Include="Options_State.h" />
     <ClInclude Include="Projectile.h" />
     <ClInclude Include="State.h" />
     <ClInclude Include="Weapon.h" />

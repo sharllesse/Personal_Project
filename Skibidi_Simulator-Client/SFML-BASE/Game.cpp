@@ -56,7 +56,7 @@ void Game::runGame()
     //if (SteamAPI_Init())
     //    SteamInput()->Init(true);
 	
-    m_state.push(std::make_unique<Game_State>(m_windowManager, &m_state));//Exemple de cr�ation d'un state
+    m_state.push(std::make_unique<Menu_State>(m_windowManager, &m_state));
 
     while (!m_windowManager.isDone())
     {

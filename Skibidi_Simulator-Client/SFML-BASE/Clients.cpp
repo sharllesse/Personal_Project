@@ -182,9 +182,9 @@ void Clients::projectiles_information(sf::Packet& _packet)
 
     for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end();)
     {
-        _packet >> (*projectile)->m_player_ID >> (*projectile)->m_position >> (*projectile)->m_need_to_be_deleted;
+        _packet >> (*projectile)->get_player_ID() >> (*projectile)->get_position() >> (*projectile)->get_deleted();
 
-        if ((*projectile)->m_need_to_be_deleted)
+        if ((*projectile)->get_deleted())
         {
             m_delete_projectiles.lock();
             projectile = m_projectiles.erase(projectile);
@@ -337,7 +337,7 @@ void Clients::draw_projectiles(sf::RenderWindow& _window)
     m_delete_projectiles.lock();
     std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles) 
         {
-            m_all_projectiles.setPosition(_projectiles->m_position);
+            m_all_projectiles.setPosition(_projectiles->get_position());
             _window.draw(m_all_projectiles);
         });
     m_delete_projectiles.unlock();

@@ -1,8 +1,16 @@
 #include "Game_State.h"
 
+#include "Menu_State.h"
+//#include "Lobby_State.h"
+
 Game_State::Game_State(WindowManager& _window, StateStack* stackState) : State(_window, stackState)
 {
     GET_MANAGER->loadScene("GAME");
+}
+
+Game_State::~Game_State()
+{
+    m_main_client.release();
 }
 
 void Game_State::init()
@@ -32,5 +40,5 @@ void Game_State::render()
 void Game_State::pushState(char data)
 {
     if (data == 1)
-        m_stackState->push(std::make_unique<Game_State>(m_windowManager, m_stackState));
+        m_stackState->push(std::make_unique<Menu_State>(m_windowManager, m_stackState));
 }

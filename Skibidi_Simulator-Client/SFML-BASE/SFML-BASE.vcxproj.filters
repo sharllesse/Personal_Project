@@ -19,6 +19,18 @@
     <Filter Include="Fichiers d%27en-tête\Tools">
       <UniqueIdentifier>{e46a2be4-6689-4cd1-b6aa-68ecb1b7510a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Fichiers sources\State">
+      <UniqueIdentifier>{4d6090ef-ab1f-45e6-b636-590f2c193b05}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Fichiers d%27en-tête\State">
+      <UniqueIdentifier>{3d1066d9-224c-42e6-b357-2ec1558d3847}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Fichiers d%27en-tête\Core">
+      <UniqueIdentifier>{e917537e-334d-433b-a7a4-9b798f4b714c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Fichiers sources\Core">
+      <UniqueIdentifier>{df227c7a-f68a-44b3-8ba4-8738ff58b4cf}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Clients.cpp">
@@ -33,17 +45,29 @@
     <ClCompile Include="Network_Tools.cpp">
       <Filter>Fichiers sources\Tools</Filter>
     </ClCompile>
-    <ClCompile Include="Source.cpp">
-      <Filter>Fichiers sources\Tools</Filter>
+    <ClCompile Include="Game_State.cpp">
+      <Filter>Fichiers sources\State</Filter>
+    </ClCompile>
+    <ClCompile Include="Menu_State.cpp">
+      <Filter>Fichiers sources\State</Filter>
     </ClCompile>
     <ClCompile Include="Game.cpp">
-      <Filter>Fichiers sources\Tools</Filter>
+      <Filter>Fichiers sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Source.cpp">
+      <Filter>Fichiers sources\Core</Filter>
     </ClCompile>
     <ClCompile Include="State.cpp">
+      <Filter>Fichiers sources\Core</Filter>
+    </ClCompile>
+    <ClCompile Include="Button.cpp">
       <Filter>Fichiers sources\Tools</Filter>
     </ClCompile>
-    <ClCompile Include="Game_State.cpp">
-      <Filter>Fichiers sources</Filter>
+    <ClCompile Include="Options_State.cpp">
+      <Filter>Fichiers sources\State</Filter>
+    </ClCompile>
+    <ClCompile Include="Lobby_State.cpp">
+      <Filter>Fichiers sources\State</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -59,14 +83,26 @@
     <ClInclude Include="Network_Tools.h">
       <Filter>Fichiers d%27en-tête\Tools</Filter>
     </ClInclude>
+    <ClInclude Include="Game_State.h">
+      <Filter>Fichiers d%27en-tête\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Menu_State.h">
+      <Filter>Fichiers d%27en-tête\State</Filter>
+    </ClInclude>
     <ClInclude Include="Game.h">
-      <Filter>Fichiers d%27en-tête\Tools</Filter>
+      <Filter>Fichiers d%27en-tête\Core</Filter>
     </ClInclude>
     <ClInclude Include="State.h">
+      <Filter>Fichiers d%27en-tête\Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Button.h">
       <Filter>Fichiers d%27en-tête\Tools</Filter>
     </ClInclude>
-    <ClInclude Include="Game_State.h">
-      <Filter>Fichiers d%27en-tête</Filter>
+    <ClInclude Include="Options_State.h">
+      <Filter>Fichiers d%27en-tête\State</Filter>
+    </ClInclude>
+    <ClInclude Include="Lobby_State.h">
+      <Filter>Fichiers d%27en-tête\State</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>
