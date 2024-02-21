@@ -92,7 +92,8 @@ public:
 	sf::Socket::Status send_packet(sf::Packet& _packet);
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
-	void update(sf::RenderWindow& _window);
+	void update_Game(sf::RenderWindow& _window);
+	void update_UI(sf::RenderWindow& _window);
 
 	void draw(sf::RenderWindow& _window);
 

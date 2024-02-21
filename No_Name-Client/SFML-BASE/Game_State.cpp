@@ -27,7 +27,7 @@ void Game_State::update()
 {
     //m_game_view.setCenter(m_environment->getPlayer().getPosition());
 
-    m_main_client->update(m_windowManager.getWindow());
+    //m_main_client->update(m_windowManager.getWindow());
 }
 
 void Game_State::render()

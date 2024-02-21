@@ -12,10 +12,6 @@ State::State(WindowManager& _window, std::stack<std::unique_ptr<State>>* stackSt
     }
 }
 
-void State::update()
-{
-}
-
 //----------------------------------------------
 /*Exemple d'utilisation d'une class State*/
 /*Test::Test(WindowManager& _window, StateStack* stackState) : State(_window, stackState)

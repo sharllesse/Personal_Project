@@ -10,7 +10,7 @@
 class Button
 {
 public:
-	enum BUTTON_STATE
+	enum class BUTTON_STATE
 	{
 		BSNULL = -1,
 		BUTTON_IDLE,
@@ -18,7 +18,7 @@ public:
 		BUTTON_PRESSED
 	};
 
-	enum LANGUAGE 
+	enum class LANGUAGE
 	{ 
 		FRENCH,
 		ENGLISH
@@ -39,6 +39,10 @@ public:
 	/// \brief Return if the button_states is BUTTON_PRESSED or false
 	////////////////////////////////////////////////////////////
 	const bool isPressed() const;
+
+	const bool is_locked() const { return m_locked; }
+
+	void set_locked(bool _locked) { m_locked = _locked; }
 
 	////////////////////////////////////////////////////////////
 	/// \brief update the position of the shape and the text

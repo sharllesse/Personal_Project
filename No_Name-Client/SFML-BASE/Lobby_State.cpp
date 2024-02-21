@@ -6,6 +6,9 @@
 Lobby_State::Lobby_State(WindowManager& _window, StateStack* stackState) : State(_window, stackState)
 {
     GET_MANAGER->loadScene("LOBBY");
+
+    m_lobby_state = LOBBY_STATE::LSNULL;
+    tmp_client_name = "";
 }
 
 Lobby_State::~Lobby_State()
@@ -15,9 +18,12 @@ Lobby_State::~Lobby_State()
 
 void Lobby_State::init()
 {
-    m_buttons["RETURN"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Return", "Retour", Button::FRENCH, 50);
-    m_buttons["CREATE_LOBBY"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 155.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Create lobby", "Créer un lobby", Button::FRENCH, 50);
-    m_buttons["JOIN_LOBBY"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 310.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Join lobby", "Rejoindre un lobby", Button::FRENCH, 50);
+    m_lobby_state = LOBBY_STATE::LSNULL;
+
+    this->load_button(LOBBY_STATE::INNAMESELECT);
+
+    //m_main_client = std::make_unique<Clients>("Charles", sf::Vector2f(100.f, 100.f), 200.f);
+    //m_main_client->connect("127.0.0.1", 8000u);
 
     m_isReady = true;
 }
@@ -27,26 +33,80 @@ void Lobby_State::update()
     std::for_each(m_buttons.begin(), m_buttons.end(), [&m_windowManager = m_windowManager](auto& _button)
         { _button.second.update(m_windowManager.getMousePos<sf::Vector2f>()); });
 
-    if (m_windowManager.getWindow().hasFocus())
+    //If the client click on the "Enter your name" button he will be set to the INNAMESELECT state.
+    if (m_windowManager.getWindow().hasFocus() && m_lobby_state == LOBBY_STATE::LSNULL)
     {
-        if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
+        if (m_buttons["ENTER_NAME"].isPressed() && m_windowManager.timer() > 0.2f)
         {
-            this->pushState(2);
-            m_windowManager.resetTimer();
-        }
+            m_lobby_state = LOBBY_STATE::INNAMESELECT;
 
-        if (m_buttons["JOIN_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
-        {
-            this->pushState(2);
-            m_windowManager.resetTimer();
-        }
+            m_buttons["ENTER_NAME"].set_locked(true);
+            m_windowManager.StopEventUpdate(true);
 
-        if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
-        {
-            this->pushState(1);
             m_windowManager.resetTimer();
         }
     }
+
+    //Here the client enter his name and the moment he confirm his name he go to the INCHOOSE state.
+    if (m_lobby_state == LOBBY_STATE::INNAMESELECT)
+    {
+        m_buttons["ENTER_NAME"].setText(tmp_client_name);
+        if (this->enter_name(tmp_client_name, 10, false))
+        {
+            m_lobby_state = LOBBY_STATE::INCHOOSE;
+            this->load_button(m_lobby_state);
+
+            m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
+            if (!m_main_client->connect("127.0.0.1", 8000u))
+                this->pushState(1);
+
+            m_windowManager.StopEventUpdate(false);
+            m_buttons["ENTER_NAME"].set_locked(false);
+        }
+    }
+
+    //m_main_client->update_UI(m_windowManager.getWindow());
+
+    /*if (m_windowManager.getWindow().hasFocus())
+    {
+        if (m_lobby_state == LOBBY_STATE::INCHOOSE)
+        {
+            if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
+            {
+                m_lobby_state = LOBBY_STATE::INLOBBY;
+                this->load_button(m_lobby_state);
+
+                //this->pushState(2);
+                m_windowManager.resetTimer();
+            }
+
+            if (m_buttons["JOIN_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
+            {
+                m_lobby_state = LOBBY_STATE::INLOBBY;
+                this->load_button(m_lobby_state);
+
+                //this->pushState(2);
+                m_windowManager.resetTimer();
+            }
+
+            if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
+            {
+                this->pushState(1);
+                m_windowManager.resetTimer();
+            }
+        }
+        else if (m_lobby_state == LOBBY_STATE::INLOBBY)
+        {
+            if (m_buttons["QUIT"].isPressed() && m_windowManager.timer() > 0.2f)
+            {
+                m_lobby_state = LOBBY_STATE::INCHOOSE;
+                this->load_button(m_lobby_state);
+
+                //this->pushState(1);
+                m_windowManager.resetTimer();
+            }
+        }
+    }*/
 }
 
 void Lobby_State::render()
@@ -62,4 +122,55 @@ void Lobby_State::pushState(char data)
 
     if (data == 2)
         m_stackState->push(std::make_unique<Game_State>(m_windowManager, m_stackState));
+}
+
+void Lobby_State::load_button(LOBBY_STATE _lobby_state)
+{
+    if (_lobby_state == LOBBY_STATE::INCHOOSE)
+    {
+        m_buttons.clear();
+
+        m_buttons["RETURN"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Return", "Retour", Button::LANGUAGE::FRENCH, 50);
+        m_buttons["CREATE_LOBBY"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 155.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Create lobby", "Créer un lobby", Button::LANGUAGE::FRENCH, 50);
+        m_buttons["JOIN_LOBBY"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 310.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Join lobby", "Rejoindre un lobby", Button::LANGUAGE::FRENCH, 50);
+    }
+    else if (_lobby_state == LOBBY_STATE::INLOBBY)
+    {
+        m_buttons.clear();
+
+        m_buttons["QUIT"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Quit", "Quitter", Button::LANGUAGE::FRENCH, 50);
+    }
+    else if (_lobby_state == LOBBY_STATE::INNAMESELECT)
+    {
+        m_buttons.clear();
+
+        m_buttons["ENTER_NAME"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Enter your name", "Entrer votre nom", Button::LANGUAGE::FRENCH, 50);
+    }
+}
+
+bool Lobby_State::enter_name(std::string& _string, int _max_size, bool _replace_space)
+{
+    while (m_windowManager.pollEvent())
+    {
+        if (m_windowManager.getEvent().type == sf::Event::TextEntered)
+        {
+            if (m_windowManager.getEvent().text.unicode == 13 and _string.size() >= 3) {
+                return true;
+            }
+            else if (m_windowManager.getEvent().text.unicode == 8 && !_string.empty()) {
+                _string.pop_back();
+            }
+            else if (m_windowManager.getEvent().text.unicode == ' ' && !_replace_space && _string.size() < _max_size) {
+                _string += ' ';
+            }
+            else if (m_windowManager.getEvent().text.unicode == ' ' && _replace_space && _string.size() < _max_size) {
+                _string += '_';
+            }
+            else if (m_windowManager.getEvent().text.unicode >= 32 && m_windowManager.getEvent().text.unicode <= 126 && _string.size() < _max_size) {
+                _string += static_cast<char>(m_windowManager.getEvent().text.unicode);
+            }
+        }
+    }
+
+    return false;
 }

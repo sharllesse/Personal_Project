@@ -74,13 +74,17 @@ bool Clients::connect(std::string _IP, us _port, float _time_out)
             }
             else
             {
-                std::cout << "Failed to receive the ID." << std::endl;
+                #ifdef _DEBUG
+                    std::cout << "Failed to receive the ID." << std::endl;
+                #endif // _DEBUG
                 return false;
             }
         }
         else
         {
-            std::cout << "Failed to send the name and the IP." << std::endl;
+            #ifdef _DEBUG
+                std::cout << "Failed to send the name and the IP." << std::endl;
+            #endif // _DEBUG
             return false;
         }
     }
@@ -268,7 +272,7 @@ sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
     return this->m_client_information.m_socket->receive(_packet);
 }
 
-void Clients::update(sf::RenderWindow& _window)
+void Clients::update_Game(sf::RenderWindow& _window)
 {
     m_shoot_timer += Tools::getDeltaTime();
 
@@ -302,6 +306,10 @@ void Clients::update(sf::RenderWindow& _window)
     }
 
     this->send();
+}
+
+void Clients::update_UI(sf::RenderWindow& _window)
+{
 }
 
 void Clients::draw(sf::RenderWindow& _window)

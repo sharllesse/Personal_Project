@@ -3,13 +3,13 @@
 #include "Button.h"
 
 Button::Button() : 
-	m_button_state(BSNULL), m_locked(false)
+	m_button_state(BUTTON_STATE::BSNULL), m_locked(false)
 {
 }
 
 Button::Button(sf::Vector2f _position, sf::Vector2f _size, const sf::Font& _font, std::string _english_text, std::string _french_text, LANGUAGE _language, int _font_size, bool _locked)
 {
-	m_button_state = BUTTON_IDLE;
+	m_button_state = BUTTON_STATE::BUTTON_IDLE;
 	m_locked = _locked;
 
 	this->m_button_shape.setSize(_size);
@@ -38,7 +38,7 @@ const bool Button::isPressed() const
 {
 	if (this != nullptr)
 	{
-		if (this->m_button_state == BUTTON_PRESSED)
+		if (this->m_button_state == BUTTON_STATE::BUTTON_PRESSED)
 			return true;
 		return false;
 	}
@@ -84,25 +84,25 @@ void Button::update(const sf::Vector2f _mouse_position)
 			// Pressed
 			if ((this->m_button_shape.getGlobalBounds().contains(_mouse_position) && MOUSE(Left)))
 			{
-				if (this->m_button_state != BUTTON_PRESSED)
+				if (this->m_button_state != BUTTON_STATE::BUTTON_PRESSED)
 				{
 					//GET_MANAGER->playSound("menu_selection");
 				}
-				this->m_button_state = BUTTON_PRESSED;
+				this->m_button_state = BUTTON_STATE::BUTTON_PRESSED;
 				this->m_button_text.setFillColor(button_active_color);
 			}
 			else if (this->m_button_shape.getGlobalBounds().contains(_mouse_position))
 			{
-				if (this->m_button_state != BUTTON_HOVER)
+				if (this->m_button_state != BUTTON_STATE::BUTTON_HOVER)
 				{
 					//GET_MANAGER->playSound("menu_navigation");
 				}
-				this->m_button_state = BUTTON_HOVER;
+				this->m_button_state = BUTTON_STATE::BUTTON_HOVER;
 				this->m_button_text.setFillColor(button_hover_color);
 			}
 			else
 			{
-				this->m_button_state = BUTTON_IDLE;
+				this->m_button_state = BUTTON_STATE::BUTTON_IDLE;
 				this->m_button_text.setFillColor(button_idle_color);
 			}
 		}

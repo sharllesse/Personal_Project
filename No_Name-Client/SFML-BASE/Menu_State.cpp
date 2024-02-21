@@ -16,9 +16,9 @@ Menu_State::~Menu_State()
 
 void Menu_State::init()
 {
-    m_buttons["PLAY"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Play", "Jouer", Button::FRENCH, 50);
-    m_buttons["OPTIONS"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 155.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Options", "Options", Button::FRENCH, 50);
-    m_buttons["QUIT"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 310.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Quit", "Quitter", Button::FRENCH, 50);
+    m_buttons["PLAY"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Play", "Jouer", Button::LANGUAGE::FRENCH, 50);
+    m_buttons["OPTIONS"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 155.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Options", "Options", Button::LANGUAGE::FRENCH, 50);
+    m_buttons["QUIT"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 310.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Quit", "Quitter", Button::LANGUAGE::FRENCH, 50);
 
     m_isReady = true;
 }
