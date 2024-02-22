@@ -58,7 +58,7 @@ void Game::runGame()
 	
     m_state.push(std::make_unique<Menu_State>(m_windowManager, &m_state));
 
-    while (!m_windowManager.isDone())
+    while (!m_windowManager.isDone() && m_windowManager.getWindow().isOpen())
     {
         if(GET_MANAGER->IsReady())
         {

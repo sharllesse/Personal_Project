@@ -170,6 +170,8 @@ bool Lobby_State::enter_name(std::string& _string, int _max_size, bool _replace_
                 _string += static_cast<char>(m_windowManager.getEvent().text.unicode);
             }
         }
+        else if (m_windowManager.getEvent().type == sf::Event::Closed)
+            m_windowManager.getWindow().close();
     }
 
     return false;
