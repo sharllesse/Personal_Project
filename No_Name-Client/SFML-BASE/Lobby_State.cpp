@@ -3,7 +3,7 @@
 #include "Menu_State.h"
 #include "Game_State.h"
 
-Lobby_State::Lobby_State(WindowManager& _window, StateStack* stackState) : State(_window, stackState)
+Lobby_State::Lobby_State(WindowManager& _window, StateList* stackState) : State(_window, stackState)
 {
     GET_MANAGER->loadScene("LOBBY");
 
@@ -21,9 +21,6 @@ void Lobby_State::init()
     m_lobby_state = LOBBY_STATE::LSNULL;
 
     this->load_button(LOBBY_STATE::INNAMESELECT);
-
-    //m_main_client = std::make_unique<Clients>("Charles", sf::Vector2f(100.f, 100.f), 200.f);
-    //m_main_client->connect("127.0.0.1", 8000u);
 
     m_isReady = true;
 }
@@ -58,7 +55,9 @@ void Lobby_State::update()
 
             m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
             if (!m_main_client->connect("127.0.0.1", 8000u))
-                this->pushState(1);
+            {
+                //this->pushState(1);
+            }
 
             m_windowManager.StopEventUpdate(false);
             m_buttons["ENTER_NAME"].set_locked(false);
@@ -67,7 +66,7 @@ void Lobby_State::update()
 
     //m_main_client->update_UI(m_windowManager.getWindow());
 
-    /*if (m_windowManager.getWindow().hasFocus())
+    if (m_windowManager.getWindow().hasFocus())
     {
         if (m_lobby_state == LOBBY_STATE::INCHOOSE)
         {
@@ -91,7 +90,11 @@ void Lobby_State::update()
 
             if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
             {
-                this->pushState(1);
+                m_lobby_state = LOBBY_STATE::INNAMESELECT;
+                this->load_button(m_lobby_state);
+                m_lobby_state = LOBBY_STATE::LSNULL;
+                tmp_client_name = "";
+
                 m_windowManager.resetTimer();
             }
         }
@@ -105,8 +108,14 @@ void Lobby_State::update()
                 //this->pushState(1);
                 m_windowManager.resetTimer();
             }
+
+            if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
+            {
+                this->pushState(1);
+                m_windowManager.resetTimer();
+            }
         }
-    }*/
+    }
 }
 
 void Lobby_State::render()
@@ -117,11 +126,13 @@ void Lobby_State::render()
 
 void Lobby_State::pushState(char data)
 {
+    m_needToBeDeleted = true;
+
     if (data == 1)
-        m_stackState->push(std::make_unique<Menu_State>(m_windowManager, m_stackState));
+        m_stackState->push_front(std::make_unique<Menu_State>(m_windowManager, m_stackState));
 
     if (data == 2)
-        m_stackState->push(std::make_unique<Game_State>(m_windowManager, m_stackState));
+        m_stackState->push_front(std::make_unique<Game_State>(m_windowManager, m_stackState));
 }
 
 void Lobby_State::load_button(LOBBY_STATE _lobby_state)
@@ -145,6 +156,7 @@ void Lobby_State::load_button(LOBBY_STATE _lobby_state)
         m_buttons.clear();
 
         m_buttons["ENTER_NAME"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Enter your name", "Entrer votre nom", Button::LANGUAGE::FRENCH, 50);
+        m_buttons["RETURN"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 135.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Return", "Retour", Button::LANGUAGE::FRENCH, 50);
     }
 }
 

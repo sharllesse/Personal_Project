@@ -4,7 +4,7 @@
 #include "Options_State.h"
 #include "Lobby_State.h"
 
-Menu_State::Menu_State(WindowManager& _window, StateStack* stackState) : State(_window, stackState)
+Menu_State::Menu_State(WindowManager& _window, StateList* stackState) : State(_window, stackState)
 {
     GET_MANAGER->loadScene("MENU");
 }
@@ -59,8 +59,11 @@ void Menu_State::render()
 void Menu_State::pushState(char data)
 {
     if (data == 1)
-        m_stackState->push(std::make_unique<Lobby_State>(m_windowManager, m_stackState));
+    {
+        m_needToBeDeleted = true;
+        m_stackState->push_front(std::make_unique<Lobby_State>(m_windowManager, m_stackState));
+    }
 
     if (data == 2)
-        m_stackState->push(std::make_unique<Options_State>(m_windowManager, m_stackState));
+        m_stackState->push_front(std::make_unique<Options_State>(m_windowManager, m_stackState));
 }

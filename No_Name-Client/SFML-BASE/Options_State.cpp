@@ -2,7 +2,7 @@
 
 #include "Menu_State.h"
 
-Options_State::Options_State(WindowManager& _window, StateStack* stackState) : State(_window, stackState)
+Options_State::Options_State(WindowManager& _window, StateList* stackState) : State(_window, stackState)
 {
     GET_MANAGER->loadScene("OPTION");
 }
@@ -53,6 +53,5 @@ void Options_State::render()
 
 void Options_State::pushState(char data)
 {
-    if (data == 1)
-        m_stackState->push(std::make_unique<Menu_State>(m_windowManager, m_stackState));
+    m_needToBeDeleted = true;
 }

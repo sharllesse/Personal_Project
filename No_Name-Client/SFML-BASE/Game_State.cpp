@@ -3,7 +3,7 @@
 #include "Menu_State.h"
 //#include "Lobby_State.h"
 
-Game_State::Game_State(WindowManager& _window, StateStack* stackState) : State(_window, stackState)
+Game_State::Game_State(WindowManager& _window, StateList* stackState) : State(_window, stackState)
 {
     GET_MANAGER->loadScene("GAME");
 }
@@ -39,6 +39,8 @@ void Game_State::render()
 
 void Game_State::pushState(char data)
 {
+    m_needToBeDeleted = true;
+
     if (data == 1)
-        m_stackState->push(std::make_unique<Menu_State>(m_windowManager, m_stackState));
+        m_stackState->push_front(std::make_unique<Menu_State>(m_windowManager, m_stackState));
 }

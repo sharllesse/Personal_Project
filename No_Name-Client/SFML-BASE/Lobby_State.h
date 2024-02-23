@@ -7,7 +7,7 @@
 class Lobby_State : public State
 {
 public:
-    Lobby_State(WindowManager& _window, StateStack* stackState);
+    Lobby_State(WindowManager& _window, StateList* stackState);
     ~Lobby_State();
 
     enum class LOBBY_STATE

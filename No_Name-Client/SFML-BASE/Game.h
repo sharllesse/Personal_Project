@@ -5,7 +5,7 @@
 class Game
 {
 	WindowManager m_windowManager;
-	StateStack m_state;
+    StateList m_state;
 
     void update();
     void render();

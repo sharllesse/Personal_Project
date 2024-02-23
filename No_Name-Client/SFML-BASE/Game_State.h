@@ -6,7 +6,7 @@
 class Game_State : public State
 {
 public:
-    Game_State(WindowManager& _window, StateStack* stackState);
+    Game_State(WindowManager& _window, StateList* stackState);
     ~Game_State();
 private:
     void virtual init();

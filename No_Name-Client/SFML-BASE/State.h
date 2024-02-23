@@ -6,13 +6,15 @@
 class State
 {
 protected:
-    std::stack<std::unique_ptr<State>>* m_stackState;
+    std::list<std::unique_ptr<State>>* m_stackState;
     WindowManager& m_windowManager;
     bool m_isReady;
     bool m_initIsStarted;
+    bool m_needToBeDeleted;
 public:
-    State(WindowManager& _window, std::stack<std::unique_ptr<State>>* stackState);
+    State(WindowManager& _window, std::list<std::unique_ptr<State>>* stackState);
     bool getIsReady() { return m_isReady; }
+    bool getNeedToBeDeleted() { return m_needToBeDeleted; }
     bool& getIsStarted() { return m_initIsStarted; }
     void virtual init() = 0;
     void virtual update() = 0;
@@ -20,7 +22,7 @@ public:
     void virtual pushState(char data) = 0;
 };
 
-typedef std::stack<std::unique_ptr<State>> StateStack;
+typedef std::list<std::unique_ptr<State>> StateList;
 
 /*Exemple de cr�ation d'une classe state*/
 /*class Test : public State

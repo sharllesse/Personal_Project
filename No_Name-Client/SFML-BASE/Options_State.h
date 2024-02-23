@@ -6,7 +6,7 @@
 class Options_State : public State
 {
 public:
-    Options_State(WindowManager& _window, StateStack* stackState);
+    Options_State(WindowManager& _window, StateList* stackState);
     ~Options_State();
 private:
     void virtual init();

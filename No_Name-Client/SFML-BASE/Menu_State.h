@@ -6,7 +6,7 @@
 class Menu_State : public State
 {
 public:
-    Menu_State(WindowManager& _window, StateStack* stackState);
+    Menu_State(WindowManager& _window, StateList* stackState);
     ~Menu_State();
 private:
     void virtual init();

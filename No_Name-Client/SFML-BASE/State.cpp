@@ -1,6 +1,6 @@
 #include "State.h"
 
-State::State(WindowManager& _window, std::stack<std::unique_ptr<State>>* stackState) : m_windowManager(_window), m_stackState(stackState), m_isReady(false), m_initIsStarted(false)
+State::State(WindowManager& _window, std::list<std::unique_ptr<State>>* stackState) : m_windowManager(_window), m_stackState(stackState), m_isReady(false), m_initIsStarted(false), m_needToBeDeleted(false)
 {
     static bool firstTime = true;
     if (firstTime)
