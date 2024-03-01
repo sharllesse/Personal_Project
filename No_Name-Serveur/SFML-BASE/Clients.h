@@ -8,7 +8,9 @@ public:
 	{
 		ITCNULL = -1,
 		TRANSFORM,
-		SHOOT
+		SHOOT,
+		CREATE_ROOM,
+		JOIN_ROOM
 	};
 
 	enum INFO_TYPE_SERVER_SIDE

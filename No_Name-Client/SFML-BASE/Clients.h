@@ -8,7 +8,9 @@ public:
 	{
 		ITCNULL = -1,
 		TRANSFORM,
-		SHOOT
+		SHOOT,
+		CREATE_ROOM,
+		JOIN_ROOM
 	};
 
 	enum INFO_TYPE_SERVER_SIDE
@@ -19,19 +21,27 @@ public:
 		DISCONNECTED_INFORMATION,
 		PROJECTILES_INFORMATION
 	};
+
+	enum class CLIENT_STATE
+	{
+		CSNULL = -1,
+		LOBBY,
+		ROOM,
+		GAME
+	};
 private:
 	struct client_Information
 	{
 		client_Information() : 
-			m_IP(""), m_disconnected(false), m_ID(0u)
+			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::LOBBY)
 		{}
 
 		client_Information(std::string _IP, us _ID) :
-			m_IP(""), m_disconnected(false), m_ID(0u)
+			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::LOBBY)
 		{}
 
 		client_Information(std::string _IP, us _ID, bool _is_main_client) :
-			m_IP(_IP), m_disconnected(false), m_ID(_ID)
+			m_IP(_IP), m_disconnected(false), m_ID(_ID), m_client_state(CLIENT_STATE::LOBBY)
 		{
 			m_socket = std::make_unique<sf::TcpSocket>();
 		}
@@ -40,6 +50,8 @@ private:
 		us m_ID;
 		std::string m_IP;
 		bool m_disconnected;
+
+		CLIENT_STATE m_client_state;
 	};
 
 	sf::SocketSelector m_selector;
@@ -79,7 +91,9 @@ public:
 	Clients(std::string _name, us _ID, std::string _IP);
 	~Clients();
 
-	bool connect(std::string _IP, us _port, float _time_out = 5.f);
+	bool connect_to_lobby(std::string _IP, us _port, float _time_out = 5.f);
+
+	void disconnect_from_lobby();
 
 	void clients_information(sf::Packet& _packet);
 	void clients_connected(sf::Packet& _packet);
@@ -89,11 +103,13 @@ public:
 	void receive();
 	void send();
 
+	//Faire une fonction permetant de créer un lobby et dans d'un join un
+	//Et aussi faire une enum pour savoir ou est le joueur LOBBY/ROOM/GAME etc.
+
 	sf::Socket::Status send_packet(sf::Packet& _packet);
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
 	void update_Game(sf::RenderWindow& _window);
-	void update_UI(sf::RenderWindow& _window);
 
 	void draw(sf::RenderWindow& _window);
 

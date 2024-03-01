@@ -53,6 +53,9 @@ public:
 
 	void verify_connection();
 
+	void create_room();
+	void join_room();
+
 	void receive();
 	void send();
 

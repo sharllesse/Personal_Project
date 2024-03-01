@@ -18,7 +18,7 @@ void Game_State::init()
     m_game_view = sf::View(sf::Vector2f(m_windowManager.getSize()) / 2.f, sf::Vector2f(m_windowManager.getSize()));
 
     m_main_client = std::make_unique<Clients>("Charles", sf::Vector2f(100.f, 100.f), 200.f);
-    m_main_client->connect("127.0.0.1", 8000u);
+    m_main_client->connect_to_lobby("127.0.0.1", 8000u);
 
     m_isReady = true;
 }

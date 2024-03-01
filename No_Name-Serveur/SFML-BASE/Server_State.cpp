@@ -14,9 +14,9 @@ void Server_State::init()
     m_shape.setSize(sf::Vector2f(960.f - 6.f, 486.f));
     m_shape.setOrigin(sf::Vector2f((960.f - 6.f) / 2.f, 486.f / 2.f));
     m_shape.setPosition(sf::Vector2f(960.f / 2.f, (486.f / 2.f) + 3.f));
-    m_shape.setFillColor(sf::Color(255, 255, 255, 150.f));
+    m_shape.setFillColor(sf::Color(255u, 255u, 255u, 150u));
     m_shape.setOutlineThickness(3.f);
-    m_shape.setOutlineColor(sf::Color(255, 255, 255, 100.f));
+    m_shape.setOutlineColor(sf::Color(255u, 255u, 255u, 100u));
 
     m_isReady = true;
 }

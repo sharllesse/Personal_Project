@@ -38,7 +38,7 @@ Clients::~Clients()
     m_clients.clear();
 }
 
-bool Clients::connect(std::string _IP, us _port, float _time_out)
+bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
 {
     if (this->m_client_information.m_socket->connect(_IP, _port, sf::seconds(_time_out)) == sf::Socket::Done)
     {
@@ -61,11 +61,11 @@ bool Clients::connect(std::string _IP, us _port, float _time_out)
 
                 receive_packet >> this->m_client_information.m_ID >> tmp_client_size;
 
-                for (int i = 0; i < tmp_client_size; i++)
+                /*for (int i = 0; i < tmp_client_size; i++)
                 {
                     receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
                     this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
-                }
+                }*/
 
                 this->m_client_information.m_socket->setBlocking(false);
                 this->m_selector.add(*this->m_client_information.m_socket);
@@ -92,9 +92,16 @@ bool Clients::connect(std::string _IP, us _port, float _time_out)
     return false;
 }
 
+void Clients::disconnect_from_lobby()
+{
+    this->m_selector.remove(*this->m_client_information.m_socket);
+    this->m_client_information.m_socket->setBlocking(true);
+    this->m_client_information.m_socket->disconnect();
+}
+
 void Clients::clients_information(sf::Packet& _packet)
 {
-    INT_TYPE tmp_client_cout(0);
+    /*INT_TYPE tmp_client_cout(0);
 
     us tmp_ID(0u);
     sf::Vector2f tmp_position;
@@ -121,14 +128,14 @@ void Clients::clients_information(sf::Packet& _packet)
     }
 
     if (tmp_client_cout != 0)
-        _packet >> tmp_ID >> tmp_position >> tmp_rotation;
+        _packet >> tmp_ID >> tmp_position >> tmp_rotation;*/
 }
 
 void Clients::clients_connected(sf::Packet& _packet)
 {
     this->m_delete_client.lock();
 
-    this->m_clients.clear();
+    /*this->m_clients.clear();
 
     INT_TYPE tmp_client_count(0);
 
@@ -146,7 +153,7 @@ void Clients::clients_connected(sf::Packet& _packet)
             this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
     }
 
-    _packet.clear();
+    _packet.clear();*/
 
     this->m_delete_client.unlock();
 }
@@ -155,7 +162,7 @@ void Clients::clients_disconnected(sf::Packet& _packet)
 {
     this->m_delete_client.lock();
 
-    while (!_packet.endOfPacket())
+   /* while (!_packet.endOfPacket())
     {
         us tmp_ID(0u);
 
@@ -168,7 +175,7 @@ void Clients::clients_disconnected(sf::Packet& _packet)
                 else
                     return false;
             }));
-    }
+    }*/
 
     this->m_delete_client.unlock();
 }
@@ -214,7 +221,7 @@ void Clients::receive()
 
                     tmp_receive_packet >> tmp_info_type;
 
-                    if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION)
+                    /*if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION)
                     {
                         this->clients_information(tmp_receive_packet);
                     }
@@ -229,7 +236,7 @@ void Clients::receive()
                     else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::PROJECTILES_INFORMATION)
                     {
                         this->projectiles_information(tmp_receive_packet);
-                    }
+                    }*/
                 }
             }
         }
@@ -242,7 +249,7 @@ void Clients::send()
 
     if (this->m_sending_timer > 0.00833333f)
     {
-        sf::Packet sending_transfrom_packet;
+       /* sf::Packet sending_transfrom_packet;
         sf::Packet sending_shoot_packet;
 
         sending_transfrom_packet << Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM << this->m_position << this->m_rotation;
@@ -256,7 +263,7 @@ void Clients::send()
             this->send_packet(sending_shoot_packet);
 
             m_shooted = false;
-        }
+        }*/
 
         this->m_sending_timer = 0.f;
     }
@@ -278,7 +285,7 @@ void Clients::update_Game(sf::RenderWindow& _window)
 
     if (_window.hasFocus())
     {
-        this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
+        /*this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
 
         if (KEY(Z))
             this->m_position.y -= 200.f * Tools::getDeltaTime();
@@ -302,14 +309,10 @@ void Clients::update_Game(sf::RenderWindow& _window)
         m_rotation = atan2(m_mouse_position.y - m_position.y, m_mouse_position.x - m_position.x) * RAD2DEG;
 
         this->m_aim_line[0].position = sf::Vector2f(m_position);
-        this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
+        this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);*/
     }
 
     this->send();
-}
-
-void Clients::update_UI(sf::RenderWindow& _window)
-{
 }
 
 void Clients::draw(sf::RenderWindow& _window)
@@ -322,31 +325,31 @@ void Clients::draw_clients(sf::RenderWindow& _window)
 {
     this->m_delete_client.lock();
 
-    this->m_all_clients.setFillColor(sf::Color::White);
+   /* this->m_all_clients.setFillColor(sf::Color::White);
     std::for_each(this->m_clients.begin(), this->m_clients.end(), [&](std::unique_ptr<Clients>& _client)
         {
             this->m_all_clients.setPosition(_client->m_position);
             this->m_all_clients.setRotation(_client->m_rotation);
             _window.draw(this->m_all_clients);
-        });
+        });*/
 
     this->m_delete_client.unlock();
 
-    _window.draw(this->m_aim_line);
+    /*_window.draw(this->m_aim_line);
 
     this->m_all_clients.setFillColor(sf::Color::Red);
     this->m_all_clients.setPosition(this->m_position);
     this->m_all_clients.setRotation(this->m_rotation);
-    _window.draw(this->m_all_clients);
+    _window.draw(this->m_all_clients);*/
 }
 
 void Clients::draw_projectiles(sf::RenderWindow& _window)
 {
     m_delete_projectiles.lock();
-    std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles) 
+    /*std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles)
         {
             m_all_projectiles.setPosition(_projectiles->get_position());
             _window.draw(m_all_projectiles);
-        });
+        });*/
     m_delete_projectiles.unlock();
 }

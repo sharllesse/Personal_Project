@@ -20,8 +20,8 @@ Console::~Console()
 
 void Console::update()
 {
-	if (KEY(R))
-		m_console_messages.push_front(Message(std::to_string(Tools::Rand(1, 10000)), Message::INFO));
+	//if (KEY(R))
+		//m_console_messages.push_front(Message(std::to_string(Tools::Rand(1, 10000)), Message::INFO));
 }
 
 void Console::draw(sf::RenderWindow& _window, sf::View& _base_view)

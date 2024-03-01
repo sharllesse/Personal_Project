@@ -1,0 +1,3 @@
+- Give the possibility to a user to create a room.
+- Now diplay the room on the board to all the user in the main lobby.
+- Give a user the possibility to join a room.

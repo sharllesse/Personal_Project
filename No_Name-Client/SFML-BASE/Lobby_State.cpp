@@ -50,38 +50,38 @@ void Lobby_State::update()
         }
     }
 
-    //Here the client enter his name and the moment he confirm his name he go to the INCHOOSE state.
-    if (m_lobby_state == LOBBY_STATE::INNAMESELECT)
-    {
-        m_buttons["ENTER_NAME"].setText(tmp_client_name);
-        if (this->enter_name(tmp_client_name, 10, false))
-        {
-            m_lobby_state = LOBBY_STATE::INCHOOSE;
-            this->load_button(m_lobby_state);
-
-            m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
-            if (!m_main_client->connect("127.0.0.1", 8000u))
-            {
-                //this->pushState(1);
-            }
-
-            m_windowManager.StopEventUpdate(false);
-            m_buttons["ENTER_NAME"].set_locked(false);
-        }
-
-        if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
-        {
-            this->pushState(1);
-            m_windowManager.resetTimer();
-        }
-    }
-
     //m_main_client->update_UI(m_windowManager.getWindow());
 
     if (m_windowManager.getWindow().hasFocus())
     {
-        if (m_lobby_state == LOBBY_STATE::INCHOOSE)
+        //Here the client enter his name and the moment he confirm his name he go to the INCHOOSE state.
+        if (m_lobby_state == LOBBY_STATE::INNAMESELECT)
         {
+            m_buttons["ENTER_NAME"].setText(tmp_client_name);
+            if (this->enter_name(tmp_client_name, 10, false))
+            {
+                m_lobby_state = LOBBY_STATE::INCHOOSE;
+                this->load_button(m_lobby_state);
+
+                m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
+                if (!m_main_client->connect_to_lobby("127.0.0.1", 8000u))
+                {
+                    this->pushState(1);
+                }
+
+                m_windowManager.StopEventUpdate(false);
+                m_buttons["ENTER_NAME"].set_locked(false);
+            }
+
+            if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
+            {
+                this->pushState(1);
+                m_windowManager.resetTimer();
+            }
+        }
+        else if (m_lobby_state == LOBBY_STATE::INCHOOSE)
+        {
+            //Here we can create our lobby
             if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
             {
                 m_lobby_state = LOBBY_STATE::INLOBBY;
@@ -91,6 +91,7 @@ void Lobby_State::update()
                 m_windowManager.resetTimer();
             }
 
+            //Or go back to the name selection part.
             if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
             {
                 m_lobby_state = LOBBY_STATE::INNAMESELECT;
@@ -98,11 +99,15 @@ void Lobby_State::update()
                 m_lobby_state = LOBBY_STATE::LSNULL;
                 tmp_client_name = "";
 
+                this->m_main_client->disconnect_from_lobby();
+
                 m_windowManager.resetTimer();
             }
         }
         else if (m_lobby_state == LOBBY_STATE::INLOBBY)
         {
+            //When we press create or join lobby we can only quit for now.
+            //I need to do the room UI.
             if (m_buttons["QUIT"].isPressed() && m_windowManager.timer() > 0.2f)
             {
                 m_lobby_state = LOBBY_STATE::INCHOOSE;
