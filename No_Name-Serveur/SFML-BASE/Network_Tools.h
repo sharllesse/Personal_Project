@@ -2,6 +2,7 @@
 #include "SFML_ENGINE/Tools.h"
 
 #define INT_TYPE sf::Int32
+#define PORT 30000u
 
 typedef unsigned short us;
 

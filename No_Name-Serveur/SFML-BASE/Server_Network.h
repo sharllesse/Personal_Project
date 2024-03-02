@@ -6,8 +6,16 @@
 class Room
 {
 public:
+	enum class ROOM_STATE
+	{
+		RSNULL = -1,
+		LOBBY,
+		ROOM,
+		GAME
+	};
+public:
 	Room();
-	Room(std::unique_ptr<Clients>& _room_clients, std::shared_ptr<Console>& _main_console);
+	Room(std::shared_ptr<Clients>& _room_clients, std::list<us>* _clients_ID, std::shared_ptr<Console>& _main_console, us _port);
 	~Room();
 
 	void update();
@@ -17,16 +25,28 @@ public:
 
 	void update_projectiles();
 
-	void join_room(std::unique_ptr<Clients>& _client);
+	void join_room(std::shared_ptr<Clients>& _client);
+
+	us get_port() { return m_port; }
 private:
 	sf::SocketSelector m_selector;
-	sf::Listener m_listener;
+	sf::TcpListener m_listener;
+	
 	us m_id;
+	us m_port;
 	std::string m_name;
+	ROOM_STATE m_room_state;
+
 	std::weak_ptr<Console> m_main_server_console_wptr;
 
-	std::list<std::unique_ptr<Clients>> m_clients;
+	std::list<us>* m_clients_ID;
+
+	std::list<std::shared_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
+
+	std::thread m_update_thread;
+
+	bool m_room_is_finish;
 
 	float m_sending_timer;
 	unsigned m_projectiles_shooted;
@@ -38,13 +58,17 @@ private:
 	sf::TcpListener m_listener;
 	sf::SocketSelector m_selector;
 	std::thread m_verify_connection_thread;
-	Console m_console;
+	std::shared_ptr<Console> m_console;
 
 	bool m_server_closed;
+	bool m_client_wanto_to_create_room;
+
 	float m_sending_timer;
 
-	std::list<std::unique_ptr<Clients>> m_clients;
-	std::list<std::thread> m_rooms_thread;
+	std::list<std::shared_ptr<Clients>> m_clients;
+	std::list<us> m_clients_ID_to_verify;
+	std::list<us> m_clients_IDs;
+	std::list<std::unique_ptr<Room>> m_rooms;
 public:
 	Server_Network();
 	~Server_Network();

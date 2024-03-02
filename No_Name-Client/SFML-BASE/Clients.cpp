@@ -99,6 +99,15 @@ void Clients::disconnect_from_lobby()
     this->m_client_information.m_socket->disconnect();
 }
 
+void Clients::create_room()
+{
+    sf::Packet tmp_create_room_packet;
+
+    tmp_create_room_packet << Clients::INFO_TYPE_CLIENT_SIDE::CREATE_ROOM;
+
+    this->send_packet(tmp_create_room_packet);
+}
+
 void Clients::clients_information(sf::Packet& _packet)
 {
     /*INT_TYPE tmp_client_cout(0);
@@ -135,7 +144,7 @@ void Clients::clients_connected(sf::Packet& _packet)
 {
     this->m_delete_client.lock();
 
-    /*this->m_clients.clear();
+    this->m_clients.clear();
 
     INT_TYPE tmp_client_count(0);
 
@@ -153,7 +162,7 @@ void Clients::clients_connected(sf::Packet& _packet)
             this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
     }
 
-    _packet.clear();*/
+    _packet.clear();
 
     this->m_delete_client.unlock();
 }
@@ -220,6 +229,63 @@ void Clients::receive()
                     Clients::INFO_TYPE_SERVER_SIDE tmp_info_type(Clients::INFO_TYPE_SERVER_SIDE::ITSNULL);
 
                     tmp_receive_packet >> tmp_info_type;
+
+                    //METTRE CA DANS UNE FONCTION.
+                    if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::LOBBY_TO_ROOM_INFORMATION)
+                    {
+                        us tmp_port;
+
+                        tmp_receive_packet >> tmp_port;
+
+                        m_selector.remove(*m_client_information.m_socket);
+                        m_client_information.m_socket->setBlocking(true);
+                        m_client_information.m_socket->disconnect();
+
+                        if (m_client_information.m_socket->connect(IP, tmp_port) == sf::Socket::Done)
+                        {
+                            sf::Packet tmp_id_packet;
+                            sf::Packet receive_packet;
+
+                            tmp_id_packet << m_client_information.m_ID;
+
+                            if (this->send_packet(tmp_id_packet) == sf::Socket::Done)
+                            {
+                                if (this->receive_packet(receive_packet) == sf::Socket::Done)
+                                {
+                                    //Faire le recu de tout les autre client dans la room.
+                                    //Faire en sorte que les id soit unique.
+                                    INT_TYPE tmp_client_size(0);
+
+                                    std::string tmp_name("");
+                                    us tmp_ID(0u);
+                                    std::string tmp_IP("");
+
+                                    receive_packet >> this->m_client_information.m_ID >> tmp_client_size;
+
+                                    for (int i = 0; i < tmp_client_size; i++)
+                                    {
+                                        receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
+                                        this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
+                                    }
+
+                                    m_client_information.m_socket->setBlocking(false);
+                                    m_selector.add(*m_client_information.m_socket);
+                                }
+                            }
+                        }
+
+                        //PORT
+                        //IP
+
+                        //Le client envoie une info comme quoi il veut créer ca room.
+                        //Le serveur resoir l'info et Un thread qui contient la room va etre lancé.
+                        //La room auras un state LOBBY qui va juste verifié les connection et va les prendre et aussi envoyé les info avec les bouton de chacun.
+                        //Et apres in game on change de state pour update la room en question.
+                    }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION)
+                    {
+                        this->clients_connected(tmp_receive_packet);
+                    }
 
                     /*if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION)
                     {

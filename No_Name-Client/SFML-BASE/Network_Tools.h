@@ -5,6 +5,8 @@
 
 #define CONNECTION_FAIL -1
 #define INT_TYPE sf::Int32
+#define IP "127.0.0.1"
+#define PORT 30000u
 
 typedef unsigned short us;
 

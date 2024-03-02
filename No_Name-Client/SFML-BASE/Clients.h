@@ -19,7 +19,8 @@ public:
 		CLIENT_INFORMATION,
 		JOIN_INFORMATION,
 		DISCONNECTED_INFORMATION,
-		PROJECTILES_INFORMATION
+		PROJECTILES_INFORMATION,
+		LOBBY_TO_ROOM_INFORMATION
 	};
 
 	enum class CLIENT_STATE
@@ -65,7 +66,7 @@ private:
 
 	sf::Vector2f m_mouse_position;
 
-	std::list<std::unique_ptr<Clients>> m_clients;
+	std::list<std::shared_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
 	sf::RectangleShape m_all_clients;
@@ -94,6 +95,8 @@ public:
 	bool connect_to_lobby(std::string _IP, us _port, float _time_out = 5.f);
 
 	void disconnect_from_lobby();
+
+	void create_room();
 
 	void clients_information(sf::Packet& _packet);
 	void clients_connected(sf::Packet& _packet);

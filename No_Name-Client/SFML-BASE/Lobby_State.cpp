@@ -64,7 +64,7 @@ void Lobby_State::update()
                 this->load_button(m_lobby_state);
 
                 m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
-                if (!m_main_client->connect_to_lobby("127.0.0.1", 8000u))
+                if (!m_main_client->connect_to_lobby(IP, PORT))
                 {
                     this->pushState(1);
                 }
@@ -86,6 +86,8 @@ void Lobby_State::update()
             {
                 m_lobby_state = LOBBY_STATE::INLOBBY;
                 this->load_button(m_lobby_state);
+
+                m_main_client->create_room();
 
                 //this->pushState(2);
                 m_windowManager.resetTimer();
