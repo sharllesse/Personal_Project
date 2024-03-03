@@ -1,6 +1,6 @@
 - Give the possibility to a user to create a room. DONE
-- (Mini task) Put the move the receive to move to a room in a function.
-- When we left the room be reconnected to the main server.
-- Now give 10 secondes to the room to not be empty otherwise it will be deleted.
+- (Mini task) Put the move the receive to move to a room in a function. TODAY
+- When we left the room be reconnected to the main server. TODAY
+- Now give 10 secondes to the room to not be empty otherwise it will be deleted. TODAY
 - Now diplay the room on the board to all the user in the main lobby.
 - Give a user the possibility to join a room.
