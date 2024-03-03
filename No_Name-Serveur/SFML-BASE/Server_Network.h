@@ -28,9 +28,17 @@ public:
 	void join_room(std::shared_ptr<Clients>& _client);
 
 	us get_port() { return m_port; }
+	us get_id() { return m_id; }
+	float get_time_out_timer() { return m_time_out_timer; }
 private:
 	sf::SocketSelector m_selector;
 	sf::TcpListener m_listener;
+
+	sf::Time m_time;
+	sf::Clock m_clock;
+
+	inline void restart_clock() { m_time = m_clock.getElapsedTime(); }
+	inline float get_delta_time() { return m_time.asSeconds(); }
 	
 	us m_id;
 	us m_port;
@@ -49,6 +57,8 @@ private:
 	bool m_room_is_finish;
 
 	float m_sending_timer;
+	float m_time_out_timer;
+
 	unsigned m_projectiles_shooted;
 };
 
@@ -76,9 +86,6 @@ public:
 	us get_random_ID();
 
 	void verify_connection();
-
-	void create_room();
-	void join_room();
 
 	void receive();
 	void send();

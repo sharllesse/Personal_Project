@@ -26,12 +26,25 @@ Room::Room(std::shared_ptr<Clients>& _room_clients, std::list<us>* _clients_ID, 
 
 Room::~Room()
 {
+	m_room_is_finish = true;
+
+	m_update_thread.join();
+
+	m_clients.clear();
+	m_projectiles.clear();
 }
 
 void Room::update()
 {
 	while (!m_room_is_finish)
 	{
+		this->restart_clock();
+
+		if (!static_cast<unsigned>(m_clients.size()))
+			m_time_out_timer += this->get_delta_time();
+		else
+			m_time_out_timer = 0.f;
+
 		if (m_selector.wait(sf::seconds(0.001f)))
 		{
 			if (m_selector.isReady(m_listener))
@@ -104,8 +117,6 @@ void Room::update()
 					std::cout << "Failed to connect the client." << std::endl;
 				}
 			}
-
-			
 		}
 
 		//FAIRE UN TIMER DE 10 SECONDES SI YA 0 CLIENT DANS LE LOBBY ET PUIS LE DELETE.
@@ -162,8 +173,6 @@ void Room::send()
 {
 	m_sending_timer += Tools::getDeltaTime();
 
-	auto tmp_console_sptr = m_main_server_console_wptr.lock();
-
 	if (static_cast<unsigned>(m_clients.size()))
 	{
 		if (m_sending_timer > 0.00833333f)
@@ -207,7 +216,7 @@ void Room::send()
 
 					tmp_put_one_time = true;
 
-					tmp_console_sptr->add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] disconnected", Console::Message::INFO);
+					m_main_server_console_wptr.lock()->add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] disconnected", Console::Message::INFO);
 
 					m_selector.remove(*(*client)->m_client_information.m_socket);
 					(*client)->m_client_information.m_socket->disconnect();
@@ -371,15 +380,6 @@ void Server_Network::verify_connection()
 	}
 }
 
-void Server_Network::create_room()
-{
-
-}
-
-void Server_Network::join_room()
-{
-}
-
 void Server_Network::receive()
 {
 	if (m_selector.wait(sf::seconds(0.001f)))
@@ -430,6 +430,17 @@ void Server_Network::receive()
 
 void Server_Network::send()
 {
+	m_rooms.remove_if([&m_console = m_console](const auto& _room)
+		{
+			if (_room->get_time_out_timer() >= 10.f)
+			{
+				m_console->add_message("[PORT]" + std::to_string(_room->get_port()) + " [ID]" + std::to_string(_room->get_id()) + " closed", Console::Message::INFO);
+				return true;
+			}
+			else
+				return false;
+		});
+
 	m_sending_timer += Tools::getDeltaTime();
 
 	if (static_cast<unsigned>(m_clients.size()))
