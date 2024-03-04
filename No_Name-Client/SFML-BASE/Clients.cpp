@@ -1,12 +1,12 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information()
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false)
 {
 }
 
 Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
-	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, true)
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, true), m_waiting_for_reconnect(false)
 {
     m_all_clients.setSize(sf::Vector2f(50, 50));
     m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
@@ -22,7 +22,7 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
 }
 
 Clients::Clients(std::string _name, us _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID, true)
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID, true), m_waiting_for_reconnect(false)
 {
 }
 
@@ -47,7 +47,7 @@ bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
 
         this->m_client_information.m_IP = this->m_client_information.m_socket->getRemoteAddress().getLocalAddress().toString();
 
-        send_packet << this->m_name << this->m_client_information.m_IP;
+        send_packet << false << this->m_name << this->m_client_information.m_IP;
 
         if (this->send_packet(send_packet) == sf::Socket::Done)
         {
@@ -59,7 +59,7 @@ bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
                 us tmp_ID(0u);
                 std::string tmp_IP("");
 
-                receive_packet >> this->m_client_information.m_ID >> tmp_client_size;
+                receive_packet >> this->m_client_information.m_ID/* >> tmp_client_size*/;
 
                 /*for (int i = 0; i < tmp_client_size; i++)
                 {
@@ -106,6 +106,111 @@ void Clients::create_room()
     tmp_create_room_packet << Clients::INFO_TYPE_CLIENT_SIDE::CREATE_ROOM;
 
     this->send_packet(tmp_create_room_packet);
+}
+
+void Clients::leave_room()
+{
+    sf::Packet tmp_create_room_packet;
+
+    tmp_create_room_packet << Clients::INFO_TYPE_CLIENT_SIDE::LEAVE_ROOM;
+
+    this->send_packet(tmp_create_room_packet);
+}
+
+void Clients::room_connection(sf::Packet& _packet)
+{
+    us tmp_port;
+
+    _packet >> tmp_port;
+
+    m_selector.remove(*m_client_information.m_socket);
+    m_client_information.m_socket->setBlocking(true);
+    m_client_information.m_socket->disconnect();
+
+    if (m_client_information.m_socket->connect(IP, tmp_port) == sf::Socket::Done)
+    {
+        sf::Packet tmp_id_packet;
+        sf::Packet receive_packet;
+
+        tmp_id_packet << m_client_information.m_ID;
+
+        if (this->send_packet(tmp_id_packet) == sf::Socket::Done)
+        {
+            if (this->receive_packet(receive_packet) == sf::Socket::Done)
+            {
+                //Faire le recu de tout les autre client dans la room.
+                //Faire en sorte que les id soit unique.
+                INT_TYPE tmp_client_size(0);
+
+                std::string tmp_name("");
+                us tmp_ID(0u);
+                std::string tmp_IP("");
+
+                receive_packet >> tmp_client_size;
+
+                for (int i = 0; i < tmp_client_size; i++)
+                {
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
+                    this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
+                }
+
+                m_client_information.m_socket->setBlocking(false);
+                m_selector.add(*m_client_information.m_socket);
+            }
+        }
+    }
+
+    //PORT
+    //IP
+
+    //Le client envoie une info comme quoi il veut créer ca room.
+    //Le serveur resoir l'info et Un thread qui contient la room va etre lancé.
+    //La room auras un state LOBBY qui va juste verifié les connection et va les prendre et aussi envoyé les info avec les bouton de chacun.
+    //Et apres in game on change de state pour update la room en question.
+}
+
+void Clients::server_connection(sf::Packet& _packet)
+{
+    us tmp_port;
+
+    _packet >> tmp_port;
+
+    m_selector.remove(*m_client_information.m_socket);
+    m_client_information.m_socket->setBlocking(true);
+    m_client_information.m_socket->disconnect();
+
+    if (m_client_information.m_socket->connect(IP, tmp_port) == sf::Socket::Done)
+    {
+        sf::Packet tmp_id_packet;
+        sf::Packet receive_packet;
+
+        tmp_id_packet << true << m_client_information.m_ID;
+
+        if (this->send_packet(tmp_id_packet) == sf::Socket::Done)
+        {
+            if (this->receive_packet(receive_packet) == sf::Socket::Done)
+            {
+                //Faire le recu de tout les autre client dans la room.
+                //Faire en sorte que les id soit unique.
+                INT_TYPE tmp_client_size(0);
+
+                std::string tmp_name("");
+                us tmp_ID(0u);
+                std::string tmp_IP("");
+
+                receive_packet >> tmp_client_size;
+
+                /*for (int i = 0; i < tmp_client_size; i++)
+                {
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
+                    this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
+                }*/
+
+                m_client_information.m_socket->setBlocking(false);
+                m_selector.add(*m_client_information.m_socket);
+            }
+        }
+    }
 }
 
 void Clients::clients_information(sf::Packet& _packet)
@@ -230,57 +335,13 @@ void Clients::receive()
 
                     tmp_receive_packet >> tmp_info_type;
 
-                    //METTRE CA DANS UNE FONCTION.
                     if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::LOBBY_TO_ROOM_INFORMATION)
                     {
-                        us tmp_port;
-
-                        tmp_receive_packet >> tmp_port;
-
-                        m_selector.remove(*m_client_information.m_socket);
-                        m_client_information.m_socket->setBlocking(true);
-                        m_client_information.m_socket->disconnect();
-
-                        if (m_client_information.m_socket->connect(IP, tmp_port) == sf::Socket::Done)
-                        {
-                            sf::Packet tmp_id_packet;
-                            sf::Packet receive_packet;
-
-                            tmp_id_packet << m_client_information.m_ID;
-
-                            if (this->send_packet(tmp_id_packet) == sf::Socket::Done)
-                            {
-                                if (this->receive_packet(receive_packet) == sf::Socket::Done)
-                                {
-                                    //Faire le recu de tout les autre client dans la room.
-                                    //Faire en sorte que les id soit unique.
-                                    INT_TYPE tmp_client_size(0);
-
-                                    std::string tmp_name("");
-                                    us tmp_ID(0u);
-                                    std::string tmp_IP("");
-
-                                    receive_packet >> this->m_client_information.m_ID >> tmp_client_size;
-
-                                    for (int i = 0; i < tmp_client_size; i++)
-                                    {
-                                        receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
-                                        this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
-                                    }
-
-                                    m_client_information.m_socket->setBlocking(false);
-                                    m_selector.add(*m_client_information.m_socket);
-                                }
-                            }
-                        }
-
-                        //PORT
-                        //IP
-
-                        //Le client envoie une info comme quoi il veut créer ca room.
-                        //Le serveur resoir l'info et Un thread qui contient la room va etre lancé.
-                        //La room auras un state LOBBY qui va juste verifié les connection et va les prendre et aussi envoyé les info avec les bouton de chacun.
-                        //Et apres in game on change de state pour update la room en question.
+                        this->room_connection(tmp_receive_packet);
+                    }
+                    if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::ROOM_TO_LOBBY_INFORMATION)
+                    {
+                        this->server_connection(tmp_receive_packet);
                     }
                     else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION)
                     {

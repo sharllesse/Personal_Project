@@ -1,17 +1,19 @@
 #include "Server_Network.h"
 
-Room::Room()
+Room::Room() :
+	m_id(0u), m_projectiles_shooted(0u), m_sending_timer(0.f), m_port(0u), m_room_is_finish(false), m_time_out_timer(0.f), m_clients_ID(nullptr), m_main_server_console_ptr(nullptr), m_room_state(ROOM_STATE::RSNULL), m_client_want_to_leave_room(false)
 {
 }
 
-Room::Room(std::shared_ptr<Clients>& _room_clients, std::list<us>* _clients_ID, std::shared_ptr<Console>& _main_console, us _port) :
-	m_id(0u), m_projectiles_shooted(0u), m_sending_timer(0.f), m_port(_port), m_room_is_finish(false)
+Room::Room(std::shared_ptr<Clients>& _room_clients, std::list<us>& _clients_ID, std::list<std::shared_ptr<Clients>>& _main_server_client, Console& _main_console, us _port) :
+	m_id(0u), m_projectiles_shooted(0u), m_sending_timer(0.f), m_port(_port), m_room_is_finish(false), m_time_out_timer(0.f), m_client_want_to_leave_room(false)
 {
 	m_clients.push_back(_room_clients);
 
-	m_main_server_console_wptr = _main_console;
+	m_main_server_console_ptr = &_main_console;
 
-	m_clients_ID = _clients_ID;
+	m_clients_ID = &_clients_ID;
+	m_clients_main_server = &_main_server_client;
 
 	m_room_state = ROOM_STATE::ROOM;
 
@@ -20,6 +22,7 @@ Room::Room(std::shared_ptr<Clients>& _room_clients, std::list<us>* _clients_ID, 
 		m_listener.setBlocking(false);
 		m_selector.add(m_listener);
 
+		m_selector_thread = std::thread(&Room::update_selector, this);
 		m_update_thread = std::thread(&Room::update, this);
 	}
 }
@@ -29,6 +32,7 @@ Room::~Room()
 	m_room_is_finish = true;
 
 	m_update_thread.join();
+	m_selector_thread.join();
 
 	m_clients.clear();
 	m_projectiles.clear();
@@ -45,53 +49,90 @@ void Room::update()
 		else
 			m_time_out_timer = 0.f;
 
+		//this->update_projectiles();
+
+		this->client_timed_out();
+
+		this->send();
+	}
+}
+
+void Room::update_selector()
+{
+	while (!m_room_is_finish)
+	{
 		if (m_selector.wait(sf::seconds(0.001f)))
 		{
-			if (m_selector.isReady(m_listener))
+			this->verify_connection();
+
+			this->receive();
+		}
+	}
+}
+
+//FAIRE EN SORTE QUE QUAND ON EST TIMED OUT ON SOIT REMIS DANS LE LOBBY.
+//STOCKER LES UTILISATEUR QUI SONT TIMED OUT ET SI IL REJOINGNE ALORS QU'IL SONT SUPPRIMER 
+//ON PEUT QUAND MEME SE CONNECTER ET SI LA ROOM ET DEJA COMMENCé ON LUI ENVOIE UNE INFO COMME QUOI
+//IL DOIT RETOURNé AU LOBBY.
+//ET DONC FAUT FAIRE EN SORTE QUE ON PUISSE RETOURNER AU LOBBY PAR EXEMPLE LE BOUTON RETURN.
+void Room::verify_connection()
+{
+	if (m_selector.isReady(m_listener))
+	{
+		if (m_room_state == ROOM_STATE::ROOM)
+		{
+			std::unique_ptr<sf::TcpSocket> tmp_socket(std::make_unique<sf::TcpSocket>());
+			sf::Socket::Status tmp_statue(m_listener.accept(*tmp_socket));
+			if (tmp_statue == sf::Socket::Done)
 			{
-				std::unique_ptr<sf::TcpSocket> tmp_socket(std::make_unique<sf::TcpSocket>());
-				sf::Socket::Status tmp_statue(m_listener.accept(*tmp_socket));
-				if (tmp_statue == sf::Socket::Done)
+				sf::Packet receive_packet;
+				sf::Packet send_packet;
+
+				us tmp_id(0u);
+
+				if (tmp_socket->receive(receive_packet) == sf::Socket::Done)
 				{
-					sf::Packet receive_packet;
-					sf::Packet send_packet;
-					
-					us tmp_id(0u);
+					receive_packet >> tmp_id;
 
-					if (tmp_socket->receive(receive_packet) == sf::Socket::Done)
-					{
-						receive_packet >> tmp_id;
+					send_packet << static_cast<INT_TYPE>(m_clients.size());
 
-						send_packet << static_cast<INT_TYPE>(m_clients.size());
-
-						std::for_each(m_clients.begin(), m_clients.end(), [&send_packet](std::shared_ptr<Clients>& _client)
-							{
-								send_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
-							});
-
-						if (tmp_socket->send(send_packet) == sf::Socket::Done)
+					std::for_each(m_clients.begin(), m_clients.end(), [&send_packet](std::shared_ptr<Clients>& _client)
 						{
-							sf::Packet join_packet;
+							send_packet << _client->get_name() << _client->get_client_information().m_ID << _client->get_client_information().m_IP;
+						});
 
-							for (auto client = m_clients.begin(); client != m_clients.end(); client++)
+					if (tmp_socket->send(send_packet) == sf::Socket::Done)
+					{
+						bool tmp_client_has_been_found(false);
+
+						sf::Packet join_packet;
+
+						for (auto client = m_clients.begin(); client != m_clients.end(); client++)
+						{
+							if ((*client)->get_client_information().m_ID == tmp_id)
 							{
-								if ((*client)->m_client_information.m_ID == tmp_id)
-								{
-									(*client)->m_client_information.m_socket->disconnect();
-									(*client)->m_client_information.m_socket = std::move(tmp_socket);
+								(*client)->get_client_information().m_socket->disconnect();
+								(*client)->get_client_information().m_socket = std::move(tmp_socket);
 
-									m_main_server_console_wptr.lock()->add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] connected to a room", Console::Message::INFO);
-									(*client)->m_client_information.m_socket->setBlocking(false);
-									m_selector.add(*(*client)->m_client_information.m_socket);
+								m_main_server_console_ptr->add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] connected to a room", Console::Message::INFO);
 
-									break;
-								}
+								(*client)->is_waiting_for_reconnect() = false;
+
+								(*client)->get_client_information().m_socket->setBlocking(false);
+								m_selector.add(*(*client)->get_client_information().m_socket);
+
+								tmp_client_has_been_found = true;
+
+								break;
 							}
+						}
 
+						if (tmp_client_has_been_found)
+						{
 							join_packet << Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
 							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::shared_ptr<Clients>& _client)
 								{
-									join_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
+									join_packet << _client->get_name() << _client->get_client_information().m_ID << _client->get_client_information().m_IP;
 								});
 
 							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::shared_ptr<Clients>& _client)
@@ -99,42 +140,55 @@ void Room::update()
 									_client->send_packet(join_packet);
 								});
 						}
-						else
-						{
-							tmp_socket.reset();
-							std::cout << "Failed to send the packet." << std::endl;
-						}
 					}
 					else
 					{
 						tmp_socket.reset();
-						std::cout << "Failed to receive the packet." << std::endl;
+						m_main_server_console_ptr->add_message("Room [PORT][" + std::to_string(m_port) + "] [ID][" + std::to_string(m_id) + "] failed to send the packet", Console::Message::ERROR);
 					}
 				}
-				else if (tmp_statue == sf::Socket::Error || tmp_statue == sf::Socket::Disconnected)
+				else
 				{
 					tmp_socket.reset();
-					std::cout << "Failed to connect the client." << std::endl;
+					m_main_server_console_ptr->add_message("Room [PORT][" + std::to_string(m_port) + "] [ID][" + std::to_string(m_id) + "] failed to receive the packet", Console::Message::ERROR);
 				}
 			}
+			else if (tmp_statue == sf::Socket::Error || tmp_statue == sf::Socket::Disconnected)
+			{
+				tmp_socket.reset();
+				m_main_server_console_ptr->add_message("Room [PORT][" + std::to_string(m_port) + "] [ID][" + std::to_string(m_id) + "] failed to connect the client", Console::Message::ERROR);
+			}
 		}
-
-		//FAIRE UN TIMER DE 10 SECONDES SI YA 0 CLIENT DANS LE LOBBY ET PUIS LE DELETE.
-
-		this->send();
 	}
-	//this->receive();
+}
 
-	//this->update_projectiles();
+void Room::client_timed_out()
+{
+	m_clients.remove_if([this](auto& _client)
+		{
+			if (_client->is_waiting_for_reconnect())
+			{
+				_client->get_timed_out_timer() += this->get_delta_time();
+
+				if (_client->get_timed_out_timer() >= 20.f)
+				{
+					_client->get_client_information().m_socket->disconnect();
+					m_clients_ID->remove_if([&_client](us _id) { return _client->get_client_information().m_ID == _id; });
+					m_main_server_console_ptr->add_message("Player [NAME][" + _client->get_name() + "] [IP][" + _client->get_client_information().m_IP + "] [ID][" + std::to_string(_client->get_client_information().m_ID) + "] has timed out", Console::Message::INFO);
+
+					return true;
+				}
+			}
+
+			return false;
+		});
 }
 
 void Room::receive()
 {
-	if (m_selector.wait(sf::seconds(0.001f)))
-	{
-		/*std::for_each(m_clients.begin(), m_clients.end(), [&](std::unique_ptr<Clients>& _client)
+	std::for_each(m_clients.begin(), m_clients.end(), [&](std::shared_ptr<Clients>& _client)
 			{
-				if (m_selector.isReady(*_client->m_client_information.m_socket))
+				if (m_selector.isReady(*_client->get_client_information().m_socket))
 				{
 					sf::Packet receive_packet;
 					if (_client->receive_packet(receive_packet) == sf::Socket::Done)
@@ -145,11 +199,11 @@ void Room::receive()
 
 						if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM)
 						{
-							receive_packet >> _client->m_position >> _client->m_rotation;
+							//receive_packet >> _client->m_position >> _client->m_rotation;
 						}
 						else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::SHOOT)
 						{
-							int tmp_bullet_count(0);
+							/*int tmp_bullet_count(0);
 							float tmp_spread(0.f);
 							us tmp_id(0u);
 							float tmp_speed(0.f);
@@ -161,12 +215,16 @@ void Room::receive()
 							for (int i = 0; i < tmp_bullet_count; i++)
 								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::Rand(tmp_rotation - tmp_spread, tmp_rotation + tmp_spread), tmp_start_position, tmp_id));
 
-							m_projectiles_shooted += tmp_bullet_count;
+							m_projectiles_shooted += tmp_bullet_count;*/
+						}
+						else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::LEAVE_ROOM)
+						{
+							m_client_want_to_leave_room = true;
+							m_clients_ID_to_verify.push_back(_client->get_client_information().m_ID);
 						}
 					}
 				}
-			});*/
-	}
+			});
 }
 
 void Room::send()
@@ -177,71 +235,125 @@ void Room::send()
 	{
 		if (m_sending_timer > 0.00833333f)
 		{
-			bool tmp_put_one_time(false);
-
 			sf::Packet tmp_client_packet;
-			sf::Packet tmp_disconnected_packet;
-			//sf::Packet tmp_projectiles_packet;
+			/*sf::Packet tmp_projectiles_packet;
 
-			//tmp_client_packet << Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
+			tmp_client_packet << Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
 
-			//std::for_each(m_clients.begin(), m_clients.end(), [&tmp_client_packet](std::unique_ptr<Clients>& _client)
-			//	{
-			//		tmp_client_packet << _client->m_client_information.m_ID << _client->m_position << _client->m_rotation;
-			//	});
+			std::for_each(m_clients.begin(), m_clients.end(), [&tmp_client_packet](std::unique_ptr<Clients>& _client)
+				{
+					tmp_client_packet << _client->m_client_information.m_ID << _client->m_position << _client->m_rotation;
+				});
 
-			//tmp_projectiles_packet << Clients::INFO_TYPE_SERVER_SIDE::PROJECTILES_INFORMATION << m_projectiles_shooted;
+			tmp_projectiles_packet << Clients::INFO_TYPE_SERVER_SIDE::PROJECTILES_INFORMATION << m_projectiles_shooted;
 
-			//for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end();)
-			//{
-			//	tmp_projectiles_packet << (*projectile)->m_player_ID << (*projectile)->m_position << (*projectile)->m_need_to_be_deleted;
+			for (auto projectile = m_projectiles.begin(); projectile != m_projectiles.end();)
+			{
+				tmp_projectiles_packet << (*projectile)->m_player_ID << (*projectile)->m_position << (*projectile)->m_need_to_be_deleted;
 
-			//	if ((*projectile)->m_need_to_be_deleted)
-			//		projectile = m_projectiles.erase(projectile);
-			//	else
-			//		projectile++;
-			//}
+				if ((*projectile)->m_need_to_be_deleted)
+					projectile = m_projectiles.erase(projectile);
+				else
+					projectile++;
+			}*/
 
+			this->client_leave_room();
+
+			this->client_disconnection(tmp_client_packet);
+
+			m_sending_timer = 0.f;
+			m_projectiles_shooted = 0u;
+		}
+	}
+}
+
+void Room::client_leave_room()
+{
+	if (m_client_want_to_leave_room)
+	{
+		for (auto ID = m_clients_ID_to_verify.begin(); ID != m_clients_ID_to_verify.end(); ID++)
+		{
 			for (auto client = m_clients.begin(); client != m_clients.end();)
 			{
-				sf::Socket::Status tmp_socket_statue((*client)->send_packet(tmp_client_packet));
-				if (tmp_socket_statue == sf::Socket::Disconnected || tmp_socket_statue == sf::Socket::Error)
+				if (*ID == (*client)->get_client_information().m_ID)
 				{
-					m_clients_ID->remove_if([&client](us _id) { return (*client)->m_client_information.m_ID == _id; });
+					//And there we display a message about the client that as been disconnected.
+					m_main_server_console_ptr->add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] disconnected from the room", Console::Message::INFO);
 
-					if (!tmp_put_one_time)
-						tmp_disconnected_packet << Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION;
+					sf::Packet tmp_leave_room_packet;
+					us tmp_port(PORT);
 
-					tmp_disconnected_packet << (*client)->m_client_information.m_ID;
+					tmp_leave_room_packet << Clients::INFO_TYPE_SERVER_SIDE::ROOM_TO_LOBBY_INFORMATION << tmp_port;
 
-					tmp_put_one_time = true;
+					(*client)->send_packet(tmp_leave_room_packet);
 
-					m_main_server_console_wptr.lock()->add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] disconnected", Console::Message::INFO);
+					(*client)->is_waiting_for_reconnect() = true;
 
-					m_selector.remove(*(*client)->m_client_information.m_socket);
-					(*client)->m_client_information.m_socket->disconnect();
+					m_selector.remove(*(*client)->get_client_information().m_socket);
+
+					m_clients_main_server->push_back((*client));
 
 					client = m_clients.erase(client);
 				}
 				else
 				{
-					//(*client)->send_packet(tmp_projectiles_packet);
-
 					client++;
 				}
 			}
-
-			if (!tmp_disconnected_packet.endOfPacket())
-			{
-				std::for_each(m_clients.begin(), m_clients.end(), [&tmp_disconnected_packet](std::shared_ptr<Clients>& _client)
-					{
-						_client->send_packet(tmp_disconnected_packet);
-					});
-			}
-
-			m_sending_timer = 0.f;
-			m_projectiles_shooted = 0u;
 		}
+
+		m_clients_ID_to_verify.clear();
+		m_client_want_to_leave_room = false;
+	}
+}
+
+void Room::client_disconnection(sf::Packet& _packet)
+{
+	bool tmp_put_one_time(false);
+	sf::Packet tmp_disconnected_packet;
+
+	for (auto client = m_clients.begin(); client != m_clients.end();)
+	{
+		if (!(*client)->is_waiting_for_reconnect())
+		{
+			sf::Socket::Status tmp_socket_statue((*client)->send_packet(_packet));
+			if (tmp_socket_statue == sf::Socket::Disconnected || tmp_socket_statue == sf::Socket::Error)
+			{
+				m_clients_ID->remove_if([&client](us _id) { return (*client)->get_client_information().m_ID == _id; });
+
+				if (!tmp_put_one_time)
+					tmp_disconnected_packet << Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION;
+
+				tmp_disconnected_packet << (*client)->get_client_information().m_ID;
+
+				tmp_put_one_time = true;
+
+				m_main_server_console_ptr->add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] disconnected", Console::Message::INFO);
+
+				m_selector.remove(*(*client)->get_client_information().m_socket);
+				(*client)->get_client_information().m_socket->disconnect();
+
+				client = m_clients.erase(client);
+			}
+			else
+			{
+				//(*client)->send_packet(tmp_projectiles_packet);
+
+				client++;
+			}
+		}
+		else
+		{
+			client++;
+		}
+	}
+
+	if (!tmp_disconnected_packet.endOfPacket())
+	{
+		std::for_each(m_clients.begin(), m_clients.end(), [&tmp_disconnected_packet](std::shared_ptr<Clients>& _client)
+			{
+				_client->send_packet(tmp_disconnected_packet);
+			});
 	}
 }
 
@@ -256,7 +368,7 @@ void Room::update_projectiles()
 
 		std::for_each(m_clients.begin(), m_clients.end(), [&_projectiles](std::shared_ptr<Clients>& _client)
 			{
-				if (Tools::Collisions::circle_circle(_client->m_position, 25, _projectiles->m_position, 10) && !_projectiles->m_need_to_be_deleted && _projectiles->m_player_ID != _client->m_client_information.m_ID)
+				if (Tools::Collisions::circle_circle(_client->get_position(), 25, _projectiles->m_position, 10) && !_projectiles->m_need_to_be_deleted && _projectiles->m_player_ID != _client->get_client_information().m_ID)
 					_projectiles->m_need_to_be_deleted = true;
 			});
 	});
@@ -270,16 +382,14 @@ void Room::join_room(std::shared_ptr<Clients>& _client)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Server_Network::Server_Network() :
-	m_sending_timer(0.f), m_server_closed(false), m_client_wanto_to_create_room(false)
+	m_sending_timer(0.f), m_server_closed(false), m_client_want_to_create_room(false)
 {
 	if (m_listener.listen(PORT) == sf::Socket::Done)
 	{
 		m_listener.setBlocking(true);
 		m_selector.add(m_listener);
 
-		m_console = std::make_shared<Console>();
-
-		m_verify_connection_thread = std::thread(&Server_Network::verify_connection, this);
+		m_server_thread = std::thread(&Server_Network::server_thread, this);
 	}
 }
 
@@ -287,8 +397,8 @@ Server_Network::~Server_Network()
 {
 	m_server_closed = true;
 
-	if (m_verify_connection_thread.joinable())
-		m_verify_connection_thread.join();
+	if (m_server_thread.joinable())
+		m_server_thread.join();
 
 	m_selector.clear();
 }
@@ -308,138 +418,171 @@ us Server_Network::get_random_ID()
 	return tmp_int;
 }
 
-void Server_Network::verify_connection()
+void Server_Network::server_thread()
 {
 	while (!m_server_closed)
 	{
 		if (m_selector.wait(sf::seconds(0.001f)))
 		{
-			if (m_selector.isReady(m_listener))
+			this->verify_connection();
+
+			this->receive();
+		}
+	}
+}
+
+void Server_Network::verify_connection()
+{
+	if (m_selector.isReady(m_listener))
+	{
+		std::shared_ptr<Clients> tmp_client = std::make_shared<Clients>();
+		sf::Socket::Status tmp_statue(m_listener.accept(*tmp_client->get_client_information().m_socket));
+		if (tmp_statue == sf::Socket::Done)
+		{
+			sf::Packet send_packet;
+			//sf::Packet join_packet;
+			sf::Packet receive_packet;
+
+			if (tmp_client->receive_packet(receive_packet) == sf::Socket::Done)
 			{
-				std::shared_ptr<Clients> tmp_client = std::make_shared<Clients>();
-				sf::Socket::Status tmp_statue(m_listener.accept(*tmp_client->m_client_information.m_socket));
-				if (tmp_statue == sf::Socket::Done)
+				bool tmp_is_reconnecting(false);
+
+				receive_packet >> tmp_is_reconnecting;
+
+				if (tmp_is_reconnecting)
 				{
-					sf::Packet send_packet;
-					//sf::Packet join_packet;
-					sf::Packet receive_packet;
+					us tmp_id(0u);
 
-					if (tmp_client->receive_packet(receive_packet) == sf::Socket::Done)
+					receive_packet >> tmp_id;
+
+					for (auto client = m_clients.begin(); client != m_clients.end(); client++)
 					{
-						receive_packet >> tmp_client->m_name >> tmp_client->m_client_information.m_IP;
+						if ((*client)->get_client_information().m_ID == tmp_id)
+						{
+							(*client)->get_client_information().m_socket->disconnect();
+							(*client)->get_client_information().m_socket = std::move(tmp_client->get_client_information().m_socket);
 
-						tmp_client->m_client_information.m_ID = get_random_ID();
+							(*client)->is_waiting_for_reconnect() = false;
 
-						send_packet << tmp_client->m_client_information.m_ID << static_cast<INT_TYPE>(m_clients.size());
+							//Ne pas oublier que je ne supprime pas le client si il ne se reconnecte pas.
 
-						/*std::for_each(m_clients.begin(), m_clients.end(), [&send_packet](std::unique_ptr<Clients>& _client)
+							(*client)->get_client_information().m_socket->setBlocking(false);
+							m_selector.add(*(*client)->get_client_information().m_socket);
+
+							send_packet << static_cast<INT_TYPE>(m_clients.size());
+
+							if ((*client)->send_packet(send_packet) == sf::Socket::Done)
 							{
-								send_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
+								m_console.add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] got moved from a room to the main server", Console::Message::INFO);
+							}
+
+							break;
+						}
+					}
+				}
+				else
+				{
+					receive_packet >> tmp_client->get_name() >> tmp_client->get_client_information().m_IP;
+
+					tmp_client->get_client_information().m_ID = get_random_ID();
+
+					send_packet << tmp_client->get_client_information().m_ID/* << static_cast<INT_TYPE>(m_clients.size())*/;
+
+					/*std::for_each(m_clients.begin(), m_clients.end(), [&send_packet](std::unique_ptr<Clients>& _client)
+						{
+							send_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
+						});*/
+
+					if (tmp_client->send_packet(send_packet) == sf::Socket::Done)
+					{
+						m_console.add_message("Player [NAME][" + tmp_client->get_name() + "] [IP][" + tmp_client->get_client_information().m_IP + "] [ID][" + std::to_string(tmp_client->get_client_information().m_ID) + "] connected to the menu", Console::Message::INFO);
+
+						m_clients_IDs.push_back(tmp_client->get_client_information().m_ID);
+
+						tmp_client->get_client_information().m_socket->setBlocking(false);
+						m_selector.add(*tmp_client->get_client_information().m_socket);
+						m_clients.push_back(tmp_client);
+
+						/*join_packet << Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
+						std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::unique_ptr<Clients>& _client)
+							{
+								join_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
+							});
+
+						std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::unique_ptr<Clients>& _client)
+							{
+								_client->send_packet(join_packet);
 							});*/
-
-						if (tmp_client->send_packet(send_packet) == sf::Socket::Done)
-						{
-							m_console->add_message("Player [NAME][" + tmp_client->m_name + "] [IP][" + tmp_client->m_client_information.m_IP + "] [ID][" + std::to_string(tmp_client->m_client_information.m_ID) + "] connected to the menu", Console::Message::INFO);
-
-							m_clients_IDs.push_back(tmp_client->m_client_information.m_ID);
-
-							tmp_client->m_client_information.m_socket->setBlocking(false);
-							m_selector.add(*tmp_client->m_client_information.m_socket);
-							m_clients.push_back(tmp_client);
-
-							/*join_packet << Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
-							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::unique_ptr<Clients>& _client)
-								{
-									join_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
-								});
-
-							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::unique_ptr<Clients>& _client)
-								{
-									_client->send_packet(join_packet);
-								});*/
-						}
-						else
-						{
-							tmp_client.reset();
-							std::cout << "Failed to send the packet." << std::endl;
-						}
 					}
 					else
 					{
 						tmp_client.reset();
-						std::cout << "Failed to receive the packet." << std::endl;
+						m_console.add_message("Main server failed to send the packet", Console::Message::ERROR);
 					}
 				}
-				else if (tmp_statue == sf::Socket::Error || tmp_statue == sf::Socket::Disconnected)
-				{
-					tmp_client.reset();
-					std::cout << "Failed to connect the client." << std::endl;
-				}
 			}
+			else
+			{
+				tmp_client.reset();
+				m_console.add_message("Main server failed to receive the packet", Console::Message::ERROR);
+			}
+		}
+		else if (tmp_statue == sf::Socket::Error || tmp_statue == sf::Socket::Disconnected)
+		{
+			tmp_client.reset();
+			m_console.add_message("Main server failed to connect the client", Console::Message::ERROR);
 		}
 	}
 }
 
 void Server_Network::receive()
 {
-	if (m_selector.wait(sf::seconds(0.001f)))
-	{
-		std::for_each(m_clients.begin(), m_clients.end(), [&](std::shared_ptr<Clients>& _client)
+	std::for_each(m_clients.begin(), m_clients.end(), [&](std::shared_ptr<Clients>& _client)
+		{
+			if (m_selector.isReady(*_client->get_client_information().m_socket))
 			{
-				if (m_selector.isReady(*_client->m_client_information.m_socket))
+				sf::Packet receive_packet;
+				if (_client->receive_packet(receive_packet) == sf::Socket::Done)
 				{
-					sf::Packet receive_packet;
-					if (_client->receive_packet(receive_packet) == sf::Socket::Done)
+					Clients::INFO_TYPE_CLIENT_SIDE tmp_info_type(Clients::INFO_TYPE_CLIENT_SIDE::ITCNULL);
+
+					receive_packet >> tmp_info_type;
+
+					if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::CREATE_ROOM)
 					{
-						Clients::INFO_TYPE_CLIENT_SIDE tmp_info_type(Clients::INFO_TYPE_CLIENT_SIDE::ITCNULL);
+						m_client_want_to_create_room = true;
 
-						receive_packet >> tmp_info_type;
-
-						if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::CREATE_ROOM)
-						{
-							m_client_wanto_to_create_room = true;
-
-							m_clients_ID_to_verify.push_back(_client->m_client_information.m_ID);
-						}
-
-						/*if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM)
-						{
-							receive_packet >> _client->m_position >> _client->m_rotation;
-						}
-						else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::SHOOT)
-						{
-							int tmp_bullet_count(0);
-							float tmp_spread(0.f);
-							us tmp_id(0u);
-							float tmp_speed(0.f);
-							sf::Vector2f tmp_start_position;
-							float tmp_rotation(0.f);
-
-							receive_packet >> tmp_bullet_count >> tmp_spread >> tmp_id >> tmp_speed >> tmp_start_position >> tmp_rotation;
-
-							for (int i = 0; i < tmp_bullet_count; i++)
-								m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::Rand(tmp_rotation - tmp_spread, tmp_rotation + tmp_spread), tmp_start_position, tmp_id));
-
-							m_projectiles_shooted += tmp_bullet_count;
-						};*/
+						m_clients_ID_to_verify.push_back(_client->get_client_information().m_ID);
 					}
+
+					/*if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM)
+					{
+						receive_packet >> _client->m_position >> _client->m_rotation;
+					}
+					else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::SHOOT)
+					{
+						int tmp_bullet_count(0);
+						float tmp_spread(0.f);
+						us tmp_id(0u);
+						float tmp_speed(0.f);
+						sf::Vector2f tmp_start_position;
+						float tmp_rotation(0.f);
+
+						receive_packet >> tmp_bullet_count >> tmp_spread >> tmp_id >> tmp_speed >> tmp_start_position >> tmp_rotation;
+
+						for (int i = 0; i < tmp_bullet_count; i++)
+							m_projectiles.push_back(std::make_unique<Projectile>(tmp_speed, Tools::Rand(tmp_rotation - tmp_spread, tmp_rotation + tmp_spread), tmp_start_position, tmp_id));
+
+						m_projectiles_shooted += tmp_bullet_count;
+					};*/
 				}
-			});
-	}
+			}
+		});
 }
 
 void Server_Network::send()
 {
-	m_rooms.remove_if([&m_console = m_console](const auto& _room)
-		{
-			if (_room->get_time_out_timer() >= 10.f)
-			{
-				m_console->add_message("[PORT]" + std::to_string(_room->get_port()) + " [ID]" + std::to_string(_room->get_id()) + " closed", Console::Message::INFO);
-				return true;
-			}
-			else
-				return false;
-		});
+	this->room_client_verify();
 
 	m_sending_timer += Tools::getDeltaTime();
 
@@ -449,60 +592,58 @@ void Server_Network::send()
 		{
 			bool tmp_put_one_time(false);
 
-			if (m_client_wanto_to_create_room)
-			{
-				for (auto ID = m_clients_ID_to_verify.begin(); ID != m_clients_ID_to_verify.end(); ID++)
-				{
-					for (auto client = m_clients.begin(); client != m_clients.end();)
-					{
-						if (*ID == (*client)->m_client_information.m_ID)
-						{
-							//And there we display a message about the client that as been disconnected.
-							m_console->add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] disconnected from the menu", Console::Message::INFO);
-
-							sf::Packet tmp_create_room_packet;
-							us tmp_port((!m_rooms.size()) ? PORT + 1 : m_rooms.back()->get_port() + 1);
-
-							tmp_create_room_packet << Clients::INFO_TYPE_SERVER_SIDE::LOBBY_TO_ROOM_INFORMATION << tmp_port;
-
-							(*client)->send_packet(tmp_create_room_packet);
-
-							m_selector.remove(*(*client)->m_client_information.m_socket);
-
-							m_rooms.push_back(std::make_unique<Room>(*client, &m_clients_IDs, m_console, tmp_port));
-
-							client = m_clients.erase(client);
-						}
-						else
-						{
-							client++;
-						}
-					}
-				}
-
-				m_clients_ID_to_verify.clear();
-				m_client_wanto_to_create_room = false;
-			}
+			this->client_create_room();
 
 			//This packet will contain information about the room
 			//to be displayed when the client is in the lobby.
 			sf::Packet tmp_client_packet;
 
-			//There is the disconnection part.
-			//If we send the packet to the client and the socket statue is Disconnected/Error
-			//the client will be removed from the list and the selector.
+			this->client_disconnection(tmp_client_packet);
+
+			m_sending_timer = 0.f;
+		}
+	}
+}
+
+void Server_Network::room_client_verify()
+{
+	m_rooms.remove_if([&m_console = m_console](const auto& _room)
+		{
+			if (_room->get_time_out_timer() >= 10.f)
+			{
+				m_console.add_message("Room [PORT][" + std::to_string(_room->get_port()) + "] [ID][" + std::to_string(_room->get_id()) + "] closed", Console::Message::INFO);
+				return true;
+			}
+			else
+				return false;
+		});
+}
+
+void Server_Network::client_create_room()
+{
+	if (m_client_want_to_create_room)
+	{
+		for (auto ID = m_clients_ID_to_verify.begin(); ID != m_clients_ID_to_verify.end(); ID++)
+		{
 			for (auto client = m_clients.begin(); client != m_clients.end();)
 			{
-				sf::Socket::Status tmp_socket_statue((*client)->send_packet(tmp_client_packet));
-				if (tmp_socket_statue == sf::Socket::Disconnected || tmp_socket_statue == sf::Socket::Error)
+				if (*ID == (*client)->get_client_information().m_ID)
 				{
 					//And there we display a message about the client that as been disconnected.
-					m_console->add_message("Player [NAME][" + (*client)->m_name + "] [IP][" + (*client)->m_client_information.m_IP + "] [ID][" + std::to_string((*client)->m_client_information.m_ID) + "] disconnected", Console::Message::INFO);
+					m_console.add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] disconnected from the menu", Console::Message::INFO);
 
-					m_clients_IDs.remove_if([&client](us _id) { return (*client)->m_client_information.m_ID == _id; });
+					sf::Packet tmp_create_room_packet;
+					us tmp_port((!m_rooms.size()) ? PORT + 1 : m_rooms.back()->get_port() + 1);
 
-					m_selector.remove(*(*client)->m_client_information.m_socket);
-					(*client)->m_client_information.m_socket->disconnect();
+					tmp_create_room_packet << Clients::INFO_TYPE_SERVER_SIDE::LOBBY_TO_ROOM_INFORMATION << tmp_port;
+
+					(*client)->send_packet(tmp_create_room_packet);
+
+					(*client)->is_waiting_for_reconnect() = true;
+
+					m_selector.remove(*(*client)->get_client_information().m_socket);
+
+					m_rooms.push_back(std::make_unique<Room>(*client, m_clients_IDs, m_clients, m_console, tmp_port));
 
 					client = m_clients.erase(client);
 				}
@@ -511,22 +652,55 @@ void Server_Network::send()
 					client++;
 				}
 			}
+		}
 
-			m_sending_timer = 0.f;
+		m_clients_ID_to_verify.clear();
+		m_client_want_to_create_room = false;
+	}
+}
+
+void Server_Network::client_disconnection(sf::Packet& _packet)
+{
+	//There is the disconnection part.
+	//If we send the packet to the client and the socket statue is Disconnected/Error
+	//the client will be removed from the list and the selector.
+	for (auto client = m_clients.begin(); client != m_clients.end();)
+	{
+		if (!(*client)->is_waiting_for_reconnect())
+		{
+			sf::Socket::Status tmp_socket_statue((*client)->send_packet(_packet));
+			if (tmp_socket_statue == sf::Socket::Disconnected || tmp_socket_statue == sf::Socket::Error)
+			{
+				//And there we display a message about the client that as been disconnected.
+				m_console.add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] disconnected", Console::Message::INFO);
+
+				m_clients_IDs.remove_if([&client](us _id) { return (*client)->get_client_information().m_ID == _id; });
+
+				m_selector.remove(*(*client)->get_client_information().m_socket);
+				(*client)->get_client_information().m_socket->disconnect();
+
+				client = m_clients.erase(client);
+			}
+			else
+			{
+				client++;
+			}
+		}
+		else
+		{
+			client++;
 		}
 	}
 }
 
 void Server_Network::update()
 {
-	this->receive();
-
 	this->send();
 
-	m_console->update();
+	m_console.update();
 }
 
 void Server_Network::draw(sf::RenderWindow& _window)
 {
-	m_console->draw(_window, const_cast<sf::View&>(_window.getDefaultView()));
+	m_console.draw(_window, const_cast<sf::View&>(_window.getDefaultView()));
 }

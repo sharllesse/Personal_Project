@@ -115,6 +115,8 @@ void Lobby_State::update()
                 m_lobby_state = LOBBY_STATE::INCHOOSE;
                 this->load_button(m_lobby_state);
 
+                m_main_client->leave_room();
+
                 //this->pushState(1);
                 m_windowManager.resetTimer();
             }

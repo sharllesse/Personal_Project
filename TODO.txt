@@ -1,6 +1,8 @@
 - Give the possibility to a user to create a room. DONE
-- (Mini task) Put the move the receive to move to a room in a function. TODAY
-- When we left the room be reconnected to the main server. TODAY
-- Now give 10 secondes to the room to not be empty otherwise it will be deleted. TODAY
+- Now give 10 secondes to the room to not be empty otherwise it will be deleted. DONE
+- (Mini task) Put the move the receive to move to a room in a function. DONE
+- When we left the room be reconnected to the main server. DONE
+- Finish the timed out feature for the client.
+- If the player get timed out but still try to join the player need to be send back to the lobby if the game started.
 - Now diplay the room on the board to all the user in the main lobby.
 - Give a user the possibility to join a room.

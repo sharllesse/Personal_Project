@@ -10,7 +10,8 @@ public:
 		TRANSFORM,
 		SHOOT,
 		CREATE_ROOM,
-		JOIN_ROOM
+		JOIN_ROOM,
+		LEAVE_ROOM
 	};
 
 	enum INFO_TYPE_SERVER_SIDE
@@ -20,7 +21,9 @@ public:
 		JOIN_INFORMATION,
 		DISCONNECTED_INFORMATION,
 		PROJECTILES_INFORMATION,
-		LOBBY_TO_ROOM_INFORMATION
+		LOBBY_TO_ROOM_INFORMATION,
+		ROOM_TIMED_OUT,
+		ROOM_TO_LOBBY_INFORMATION
 	};
 
 	enum class CLIENT_STATE
@@ -62,6 +65,7 @@ private:
 	std::mutex m_delete_projectiles;
 
 	float m_sending_timer;
+
 	bool m_game_is_finish;
 
 	sf::Vector2f m_mouse_position;
@@ -77,6 +81,7 @@ private:
 	float m_shoot_timer;
 
 	bool m_shooted;
+	bool m_waiting_for_reconnect;
 
 	sf::Vector2f m_position;
 
@@ -97,7 +102,10 @@ public:
 	void disconnect_from_lobby();
 
 	void create_room();
+	void leave_room();
 
+	void room_connection(sf::Packet& _packet);
+	void server_connection(sf::Packet& _packet);
 	void clients_information(sf::Packet& _packet);
 	void clients_connected(sf::Packet& _packet);
 	void clients_disconnected(sf::Packet& _packet);
