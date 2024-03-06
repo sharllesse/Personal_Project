@@ -1,5 +1,6 @@
 #pragma once
 #include "Projectile.h"
+#include "Button.h"
 
 class Clients
 {
@@ -23,7 +24,8 @@ public:
 		PROJECTILES_INFORMATION,
 		LOBBY_TO_ROOM_INFORMATION,
 		ROOM_TIMED_OUT,
-		ROOM_TO_LOBBY_INFORMATION
+		ROOM_TO_LOBBY_INFORMATION,
+		ROOM_INFORMATION
 	};
 
 	enum class CLIENT_STATE
@@ -73,6 +75,8 @@ private:
 	std::list<std::shared_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
+	std::vector<std::tuple<std::string, us, us, Button>> m_rooms;
+
 	sf::RectangleShape m_all_clients;
 	sf::CircleShape m_all_projectiles;
 
@@ -110,6 +114,7 @@ public:
 	void clients_connected(sf::Packet& _packet);
 	void clients_disconnected(sf::Packet& _packet);
 	void projectiles_information(sf::Packet& _packet);
+	void room_information(sf::Packet& _packet);
 
 	void receive();
 	void send();
@@ -120,7 +125,7 @@ public:
 	sf::Socket::Status send_packet(sf::Packet& _packet);
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
-	void update_Game(sf::RenderWindow& _window);
+	void update(sf::RenderWindow& _window);
 
 	void draw(sf::RenderWindow& _window);
 

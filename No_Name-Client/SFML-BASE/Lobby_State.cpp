@@ -81,6 +81,8 @@ void Lobby_State::update()
         }
         else if (m_lobby_state == LOBBY_STATE::INCHOOSE)
         {
+            m_main_client->send();
+
             //Here we can create our lobby
             if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
             {

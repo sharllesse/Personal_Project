@@ -1,13 +1,15 @@
 #include "Server_Network.h"
 
 Room::Room() :
-	m_id(0u), m_projectiles_shooted(0u), m_sending_timer(0.f), m_port(0u), m_room_is_finish(false), m_time_out_timer(0.f), m_clients_ID(nullptr), m_main_server_console_ptr(nullptr), m_room_state(ROOM_STATE::RSNULL), m_client_want_to_leave_room(false)
+	m_id(0u), m_projectiles_shooted(0u), m_sending_timer(0.f), m_port(0u), m_room_is_finish(false), m_time_out_timer(0.f), m_clients_ID(nullptr), m_main_server_console_ptr(nullptr), m_room_state(ROOM_STATE::RSNULL), m_client_want_to_leave_room(false), m_clients_main_server(nullptr)
 {
 }
 
 Room::Room(std::shared_ptr<Clients>& _room_clients, std::list<us>& _clients_ID, std::list<std::shared_ptr<Clients>>& _main_server_client, Console& _main_console, us _port) :
 	m_id(0u), m_projectiles_shooted(0u), m_sending_timer(0.f), m_port(_port), m_room_is_finish(false), m_time_out_timer(0.f), m_client_want_to_leave_room(false)
 {
+	m_name = _room_clients->get_name();
+
 	m_clients.push_back(_room_clients);
 
 	m_main_server_console_ptr = &_main_console;
@@ -22,7 +24,7 @@ Room::Room(std::shared_ptr<Clients>& _room_clients, std::list<us>& _clients_ID, 
 		m_listener.setBlocking(false);
 		m_selector.add(m_listener);
 
-		m_selector_thread = std::thread(&Room::update_selector, this);
+		//m_selector_thread = std::thread(&Room::update_selector, this);
 		m_update_thread = std::thread(&Room::update, this);
 	}
 }
@@ -32,7 +34,7 @@ Room::~Room()
 	m_room_is_finish = true;
 
 	m_update_thread.join();
-	m_selector_thread.join();
+	//m_selector_thread.join();
 
 	m_clients.clear();
 	m_projectiles.clear();
@@ -40,14 +42,26 @@ Room::~Room()
 
 void Room::update()
 {
+	//This is the base update of the room that as been lauch in a thread.
 	while (!m_room_is_finish)
 	{
+		//This is basically a new server that work on his own.
 		this->restart_clock();
 
+		//m_time_out_timer is here to be sure that we need or the room to be deleted.
 		if (!static_cast<unsigned>(m_clients.size()))
 			m_time_out_timer += this->get_delta_time();
 		else
 			m_time_out_timer = 0.f;
+
+		//This is here temporary or maybe definitely when will move i will test if its cause lag or not.
+		//For now im going to put it here to avoid creating 2 thread per room.
+		if (m_selector.wait(sf::seconds(0.001f)))
+		{
+			this->verify_connection();
+
+			this->receive();
+		}
 
 		//this->update_projectiles();
 
@@ -57,8 +71,14 @@ void Room::update()
 	}
 }
 
-void Room::update_selector()
+//USELESS FOR NOW
+/*void Room::update_selector()
 {
+	//update_selector is another update that as been lauch in thread.
+	//Why did i lauch it in another thread its because the wait of a selector
+	//may cause lag that the server to stop.
+
+	//For now im going to put the selector wait in the normal update to test it.
 	while (!m_room_is_finish)
 	{
 		if (m_selector.wait(sf::seconds(0.001f)))
@@ -68,13 +88,13 @@ void Room::update_selector()
 			this->receive();
 		}
 	}
-}
+}*/
 
 //FAIRE EN SORTE QUE QUAND ON EST TIMED OUT ON SOIT REMIS DANS LE LOBBY.
 //STOCKER LES UTILISATEUR QUI SONT TIMED OUT ET SI IL REJOINGNE ALORS QU'IL SONT SUPPRIMER 
 //ON PEUT QUAND MEME SE CONNECTER ET SI LA ROOM ET DEJA COMMENCé ON LUI ENVOIE UNE INFO COMME QUOI
 //IL DOIT RETOURNé AU LOBBY.
-//ET DONC FAUT FAIRE EN SORTE QUE ON PUISSE RETOURNER AU LOBBY PAR EXEMPLE LE BOUTON RETURN.
+
 void Room::verify_connection()
 {
 	if (m_selector.isReady(m_listener))
@@ -178,6 +198,10 @@ void Room::client_timed_out()
 
 					return true;
 				}
+			}
+			else
+			{
+				_client->get_timed_out_timer() = 0.f;
 			}
 
 			return false;
@@ -382,11 +406,11 @@ void Room::join_room(std::shared_ptr<Clients>& _client)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Server_Network::Server_Network() :
-	m_sending_timer(0.f), m_server_closed(false), m_client_want_to_create_room(false)
+	m_sending_timer(0.f), m_server_closed(false), m_client_want_to_create_room(false), m_room_create_count(0u)
 {
 	if (m_listener.listen(PORT) == sf::Socket::Done)
 	{
-		m_listener.setBlocking(true);
+		m_listener.setBlocking(false);
 		m_selector.add(m_listener);
 
 		m_server_thread = std::thread(&Server_Network::server_thread, this);
@@ -449,12 +473,15 @@ void Server_Network::verify_connection()
 
 				receive_packet >> tmp_is_reconnecting;
 
+				//The bool tmp_is_reconnecting is here to know if the client is reconnecting from a room or just a new client.
 				if (tmp_is_reconnecting)
 				{
 					us tmp_id(0u);
 
 					receive_packet >> tmp_id;
 
+					//If the client is from a room we use get his id a set a new socket who as been connect to the main server.
+					//And we remove the old that was connected to the room.
 					for (auto client = m_clients.begin(); client != m_clients.end(); client++)
 					{
 						if ((*client)->get_client_information().m_ID == tmp_id)
@@ -469,7 +496,12 @@ void Server_Network::verify_connection()
 							(*client)->get_client_information().m_socket->setBlocking(false);
 							m_selector.add(*(*client)->get_client_information().m_socket);
 
-							send_packet << static_cast<INT_TYPE>(m_clients.size());
+							send_packet << static_cast<INT_TYPE>(m_rooms.size());
+
+							std::for_each(m_rooms.begin(), m_rooms.end(), [&send_packet](const auto& _room)
+								{
+									send_packet << _room->get_name() << _room->get_id() << _room->get_port();
+								});
 
 							if ((*client)->send_packet(send_packet) == sf::Socket::Done)
 							{
@@ -482,16 +514,18 @@ void Server_Network::verify_connection()
 				}
 				else
 				{
+					//And here its when its a new client so we giving him a new ID that as not been taken.
+					//And we get his IP and name.
 					receive_packet >> tmp_client->get_name() >> tmp_client->get_client_information().m_IP;
 
 					tmp_client->get_client_information().m_ID = get_random_ID();
 
-					send_packet << tmp_client->get_client_information().m_ID/* << static_cast<INT_TYPE>(m_clients.size())*/;
+					send_packet << tmp_client->get_client_information().m_ID << static_cast<INT_TYPE>(m_rooms.size());
 
-					/*std::for_each(m_clients.begin(), m_clients.end(), [&send_packet](std::unique_ptr<Clients>& _client)
+					std::for_each(m_rooms.begin(), m_rooms.end(), [&send_packet](const auto& _room)
 						{
-							send_packet << _client->m_name << _client->m_client_information.m_ID << _client->m_client_information.m_IP;
-						});*/
+							send_packet << _room->get_name() << _room->get_id() << _room->get_port();
+						});
 
 					if (tmp_client->send_packet(send_packet) == sf::Socket::Done)
 					{
@@ -551,6 +585,7 @@ void Server_Network::receive()
 					if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::CREATE_ROOM)
 					{
 						m_client_want_to_create_room = true;
+						m_room_create_count++;
 
 						m_clients_ID_to_verify.push_back(_client->get_client_information().m_ID);
 					}
@@ -582,41 +617,43 @@ void Server_Network::receive()
 
 void Server_Network::send()
 {
-	this->room_client_verify();
-
 	m_sending_timer += Tools::getDeltaTime();
 
-	if (static_cast<unsigned>(m_clients.size()))
+	if (m_sending_timer > 0.00833333f)
 	{
-		if (m_sending_timer > 0.00833333f)
-		{
-			bool tmp_put_one_time(false);
+		bool tmp_put_one_time(false);
 
-			this->client_create_room();
+		this->client_create_room();
 
-			//This packet will contain information about the room
-			//to be displayed when the client is in the lobby.
-			sf::Packet tmp_client_packet;
+		//This packet will contain information about the room
+		//to be displayed when the client is in the lobby.
+		sf::Packet tmp_client_packet;
 
+		//This here to say to the client to create room to display them.
+
+		tmp_client_packet << Clients::INFO_TYPE_SERVER_SIDE::ROOM_INFORMATION << m_room_create_count;
+
+		m_rooms.remove_if([&m_console = m_console, &tmp_client_packet](const auto& _room)
+			{
+				if (_room->get_time_out_timer() >= 10.f)
+				{
+					m_console.add_message("Room [PORT][" + std::to_string(_room->get_port()) + "] [ID][" + std::to_string(_room->get_id()) + "] closed", Console::Message::INFO);
+					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << true;
+					return true;
+				}
+				else
+				{
+					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << false;
+					return false;
+				}
+			});
+
+		//if (!static_cast<unsigned>(m_clients.size()))
 			this->client_disconnection(tmp_client_packet);
 
-			m_sending_timer = 0.f;
-		}
+		m_room_create_count = 0u;
+		m_sending_timer = 0.f;
 	}
-}
-
-void Server_Network::room_client_verify()
-{
-	m_rooms.remove_if([&m_console = m_console](const auto& _room)
-		{
-			if (_room->get_time_out_timer() >= 10.f)
-			{
-				m_console.add_message("Room [PORT][" + std::to_string(_room->get_port()) + "] [ID][" + std::to_string(_room->get_id()) + "] closed", Console::Message::INFO);
-				return true;
-			}
-			else
-				return false;
-		});
 }
 
 void Server_Network::client_create_room()

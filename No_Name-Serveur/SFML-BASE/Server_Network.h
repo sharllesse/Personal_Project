@@ -3,6 +3,8 @@
 #include "Projectile.h"
 #include "Console.h"
 
+								/////------------------------------------------Server Class------------------------------------------/////
+
 class Room
 {
 public:
@@ -28,7 +30,7 @@ public:
 	/// <para>This update will manage the receive and verify if there is connection.</para>
 	/// <para>And as it said in her name anything that will use a selector will be in it.</para>
 	/// </summary>
-	void update_selector();
+	//void update_selector();
 	
 	/// <summary>
 	/// Updates the projectiles (The velocity and position).
@@ -72,9 +74,12 @@ public:
 #pragma endregion
 
 #pragma region GETTER/SETTER
-	us get_port() { return m_port; }
-	us get_id() { return m_id; }
-	float get_time_out_timer() { return m_time_out_timer; }
+
+	us get_port() const { return m_port; }
+	us get_id() const { return m_id; }
+	float get_time_out_timer() const { return m_time_out_timer; }
+	std::string get_name() const { return m_name; }
+
 #pragma endregion
 
 	void join_room(std::shared_ptr<Clients>& _client);
@@ -104,7 +109,7 @@ private:
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
 	std::thread m_update_thread;
-	std::thread m_selector_thread;
+	//std::thread m_selector_thread;
 
 	bool m_room_is_finish;
 	bool m_client_want_to_leave_room;
@@ -114,6 +119,8 @@ private:
 
 	unsigned m_projectiles_shooted;
 };
+
+								/////------------------------------------------Server Class------------------------------------------/////
 
 class Server_Network
 {
@@ -129,6 +136,8 @@ private:
 	bool m_client_want_to_create_room;
 
 	float m_sending_timer;
+
+	us m_room_create_count;
 
 	std::list<std::shared_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Room>> m_rooms;
@@ -169,12 +178,6 @@ public:
 	/// </summary>
 	/// <returns></returns>
 	us get_random_ID();
-
-	/// <summary>
-	/// <para>Verify if a room is timed out or not.</para>
-	/// <para>(10 sec for a time out to occur.)</para>
-	/// </summary>
-	void room_client_verify();
 
 	/// <summary>
 	/// <para>This function is made to create a room if a client want to.</para>

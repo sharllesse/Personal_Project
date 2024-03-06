@@ -53,19 +53,19 @@ bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
         {
             if (this->receive_packet(receive_packet) == sf::Socket::Done)
             {
-                INT_TYPE tmp_client_size(0);
+                INT_TYPE tmp_room_size(0);
 
                 std::string tmp_name("");
                 us tmp_ID(0u);
-                std::string tmp_IP("");
+                us tmp_PORT(0u);
 
-                receive_packet >> this->m_client_information.m_ID/* >> tmp_client_size*/;
+                receive_packet >> this->m_client_information.m_ID >> tmp_room_size;
 
-                /*for (int i = 0; i < tmp_client_size; i++)
+                for (int i = 0; i < tmp_room_size; i++)
                 {
-                    receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
-                    this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
-                }*/
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_PORT;
+                    this->m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT));
+                }
 
                 this->m_client_information.m_socket->setBlocking(false);
                 this->m_selector.add(*this->m_client_information.m_socket);
@@ -138,8 +138,6 @@ void Clients::room_connection(sf::Packet& _packet)
         {
             if (this->receive_packet(receive_packet) == sf::Socket::Done)
             {
-                //Faire le recu de tout les autre client dans la room.
-                //Faire en sorte que les id soit unique.
                 INT_TYPE tmp_client_size(0);
 
                 std::string tmp_name("");
@@ -191,20 +189,19 @@ void Clients::server_connection(sf::Packet& _packet)
             if (this->receive_packet(receive_packet) == sf::Socket::Done)
             {
                 //Faire le recu de tout les autre client dans la room.
-                //Faire en sorte que les id soit unique.
-                INT_TYPE tmp_client_size(0);
+                INT_TYPE tmp_room_size(0);
 
                 std::string tmp_name("");
                 us tmp_ID(0u);
-                std::string tmp_IP("");
+                us tmp_PORT(0u);
 
-                receive_packet >> tmp_client_size;
+                receive_packet >> tmp_room_size;
 
-                /*for (int i = 0; i < tmp_client_size; i++)
+                for (int i = 0; i < tmp_room_size; i++)
                 {
-                    receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
-                    this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
-                }*/
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_PORT;
+                    m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
+                }
 
                 m_client_information.m_socket->setBlocking(false);
                 m_selector.add(*m_client_information.m_socket);
@@ -320,6 +317,27 @@ void Clients::projectiles_information(sf::Packet& _packet)
     }
 }
 
+void Clients::room_information(sf::Packet& _packet)
+{
+    us tmp_room_create_count(0u);
+    bool tmp_need_to_be_deleted(false);
+
+    _packet >> tmp_room_create_count;
+
+    for (int i = 0; i < tmp_room_create_count; i++)
+        m_rooms.push_back(std::make_tuple("", 0u, 0u));
+
+    for (auto room = m_rooms.begin(); room < m_rooms.end();)
+    {
+        _packet >> std::get<0>(*room) >> std::get<1>(*room) >> std::get<2>(*room) >> tmp_need_to_be_deleted;
+
+        if (tmp_need_to_be_deleted)
+            room = m_rooms.erase(room);
+        else
+            room++;
+    }
+}
+
 void Clients::receive()
 {
     while (!this->m_game_is_finish)
@@ -346,6 +364,10 @@ void Clients::receive()
                     else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION)
                     {
                         this->clients_connected(tmp_receive_packet);
+                    }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::ROOM_INFORMATION)
+                    {
+                        this->room_information(tmp_receive_packet);
                     }
 
                     /*if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION)
@@ -406,7 +428,7 @@ sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
     return this->m_client_information.m_socket->receive(_packet);
 }
 
-void Clients::update_Game(sf::RenderWindow& _window)
+void Clients::update(sf::RenderWindow& _window)
 {
     m_shoot_timer += Tools::getDeltaTime();
 
@@ -438,8 +460,6 @@ void Clients::update_Game(sf::RenderWindow& _window)
         this->m_aim_line[0].position = sf::Vector2f(m_position);
         this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);*/
     }
-
-    this->send();
 }
 
 void Clients::draw(sf::RenderWindow& _window)
