@@ -2,7 +2,7 @@
 - Now give 10 secondes to the room to not be empty otherwise it will be deleted. DONE
 - (Mini task) Put the move the receive to move to a room in a function. DONE
 - When we left the room be reconnected to the main server. DONE
-- Finish the timed out feature for the client.
-- If the player get timed out but still try to join the player need to be send back to the lobby if the game started.
-- Now diplay the room on the board to all the user in the main lobby.
+- Finish the timed out feature for the client. LATER
+- If the player get timed out but still try to join the player need to be send back to the lobby if the game started. LATER
+- Now diplay the room on the board to all the user in the main lobby. THE ROOM ARE HERE NOW NEED TO BE DISPLAY
 - Give a user the possibility to join a room.
