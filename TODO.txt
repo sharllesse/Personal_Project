@@ -4,5 +4,5 @@
 - When we left the room be reconnected to the main server. DONE
 - Finish the timed out feature for the client. LATER
 - If the player get timed out but still try to join the player need to be send back to the lobby if the game started. LATER
-- Now diplay the room on the board to all the user in the main lobby. THE ROOM ARE HERE NOW NEED TO BE DISPLAY
-- Give a user the possibility to join a room.
+- Now diplay the room on the board to all the user in the main lobby. DONE
+- Give a user the possibility to join a room. 
