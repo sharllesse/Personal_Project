@@ -30,7 +30,7 @@ void Server_State::update()
 
 void Server_State::render()
 {
-    m_windowManager.getWindow().setView(m_game_view);
+    //m_windowManager.getWindow().setView(m_game_view);
 
     m_windowManager.draw(m_shape);
     

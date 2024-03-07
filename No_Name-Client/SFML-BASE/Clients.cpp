@@ -19,6 +19,13 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
     m_aim_line = sf::VertexArray(sf::Lines);
     m_aim_line.append(sf::Vertex(sf::Vector2f(0, 0), sf::Color::Red));
     m_aim_line.append(sf::Vertex(sf::Vector2f(0, 0), sf::Color::Red));
+
+    test.setSize(sf::Vector2f(1920, 1080));
+    test.setFillColor(sf::Color::Black);
+
+    //m_room_button_view = sf::View(sf::Vector2f(1437.f / 2, 1060.f / 2), sf::Vector2f(1437.f, 1060.f));
+    m_room_button_view = sf::View(sf::Vector2f(1416.912f / 2, 1039.824f / 2), sf::Vector2f(1416.912f, 1039.824f));
+    m_room_button_view.setViewport(sf::FloatRect(0.252f, 0.0186f, 0.737975f, 0.9628f));
 }
 
 Clients::Clients(std::string _name, us _ID, std::string _IP) :
@@ -64,9 +71,10 @@ bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
                 for (int i = 0; i < tmp_room_size; i++)
                 {
                     receive_packet >> tmp_name >> tmp_ID >> tmp_PORT;
-                    this->m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT));
+                    this->m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
                 }
 
+                this->m_client_information.m_client_state = CLIENT_STATE::LOBBY;
                 this->m_client_information.m_socket->setBlocking(false);
                 this->m_selector.add(*this->m_client_information.m_socket);
 
@@ -97,6 +105,7 @@ void Clients::disconnect_from_lobby()
     this->m_selector.remove(*this->m_client_information.m_socket);
     this->m_client_information.m_socket->setBlocking(true);
     this->m_client_information.m_socket->disconnect();
+    this->m_client_information.m_client_state = CLIENT_STATE::LOBBY;
 }
 
 void Clients::create_room()
@@ -152,6 +161,8 @@ void Clients::room_connection(sf::Packet& _packet)
                     this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
                 }
 
+                m_rooms.clear();
+                m_client_information.m_client_state = CLIENT_STATE::ROOM;
                 m_client_information.m_socket->setBlocking(false);
                 m_selector.add(*m_client_information.m_socket);
             }
@@ -203,6 +214,7 @@ void Clients::server_connection(sf::Packet& _packet)
                     m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
                 }
 
+                m_client_information.m_client_state = CLIENT_STATE::LOBBY;
                 m_client_information.m_socket->setBlocking(false);
                 m_selector.add(*m_client_information.m_socket);
             }
@@ -325,16 +337,23 @@ void Clients::room_information(sf::Packet& _packet)
     _packet >> tmp_room_create_count;
 
     for (int i = 0; i < tmp_room_create_count; i++)
-        m_rooms.push_back(std::make_tuple("", 0u, 0u));
+        m_rooms.push_back(std::make_tuple("", 0u, 0u, Button(sf::Vector2f(0.f, 0.f), sf::Vector2f(600.f, 125.f), GET_MANAGER->getFont("arial"), "", "", Button::LANGUAGE::FRENCH, 50)));
 
+    us tmp_position_decal(0u);
     for (auto room = m_rooms.begin(); room < m_rooms.end();)
     {
         _packet >> std::get<0>(*room) >> std::get<1>(*room) >> std::get<2>(*room) >> tmp_need_to_be_deleted;
 
+        std::get<3>(*room).setText(std::get<0>(*room));
+        std::get<3>(*room).setPosition(sf::Vector2f(0.f, (std::get<3>(*room).getSize().y + 10.f) * tmp_position_decal));
+
         if (tmp_need_to_be_deleted)
             room = m_rooms.erase(room);
         else
+        {
+            tmp_position_decal++;
             room++;
+        }
     }
 }
 
@@ -462,13 +481,39 @@ void Clients::update(sf::RenderWindow& _window)
     }
 }
 
-void Clients::draw(sf::RenderWindow& _window)
+void Clients::draw(WindowManager& _window)
 {
-    this->draw_clients(_window);
-    this->draw_projectiles(_window);
+    if (m_client_information.m_client_state == CLIENT_STATE::LOBBY)
+        this->draw_rooms(_window);
+
+    if (m_client_information.m_client_state == CLIENT_STATE::GAME)
+    {
+        this->draw_clients(_window);
+        this->draw_projectiles(_window);
+    }
 }
 
-void Clients::draw_clients(sf::RenderWindow& _window)
+
+void Clients::draw_rooms(WindowManager& _window)
+{
+    _window.getWindow().setView(m_room_button_view);
+
+    for (auto& room : m_rooms)
+    {
+        std::get<3>(room).render(_window);
+    }
+    //test.setSize(sf::Vector2f(1920, 1080));
+    //test.setFillColor(sf::Color::Black);
+    //_window.draw(test);
+
+    //test.setSize(sf::Vector2f(100, 100));
+    //test.setFillColor(sf::Color::White);
+    //_window.draw(test);
+
+    _window.getWindow().setView(_window.getWindow().getDefaultView());
+}
+
+void Clients::draw_clients(WindowManager& _window)
 {
     this->m_delete_client.lock();
 
@@ -490,7 +535,7 @@ void Clients::draw_clients(sf::RenderWindow& _window)
     _window.draw(this->m_all_clients);*/
 }
 
-void Clients::draw_projectiles(sf::RenderWindow& _window)
+void Clients::draw_projectiles(WindowManager& _window)
 {
     m_delete_projectiles.lock();
     /*std::for_each(m_projectiles.begin(), m_projectiles.end(), [&](std::unique_ptr<Projectile>& _projectiles)

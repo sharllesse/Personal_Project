@@ -60,7 +60,7 @@ void Lobby_State::update()
             m_buttons["ENTER_NAME"].setText(tmp_client_name);
             if (this->enter_name(tmp_client_name, 10, false))
             {
-                m_lobby_state = LOBBY_STATE::INCHOOSE;
+                m_lobby_state = LOBBY_STATE::INLOBBY;
                 this->load_button(m_lobby_state);
 
                 m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
@@ -79,14 +79,14 @@ void Lobby_State::update()
                 m_windowManager.resetTimer();
             }
         }
-        else if (m_lobby_state == LOBBY_STATE::INCHOOSE)
+        else if (m_lobby_state == LOBBY_STATE::INLOBBY)
         {
             m_main_client->send();
 
             //Here we can create our lobby
             if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
             {
-                m_lobby_state = LOBBY_STATE::INLOBBY;
+                m_lobby_state = LOBBY_STATE::INROOM;
                 this->load_button(m_lobby_state);
 
                 m_main_client->create_room();
@@ -108,13 +108,13 @@ void Lobby_State::update()
                 m_windowManager.resetTimer();
             }
         }
-        else if (m_lobby_state == LOBBY_STATE::INLOBBY)
+        else if (m_lobby_state == LOBBY_STATE::INROOM)
         {
             //When we press create or join lobby we can only quit for now.
             //I need to do the room UI.
             if (m_buttons["QUIT"].isPressed() && m_windowManager.timer() > 0.2f)
             {
-                m_lobby_state = LOBBY_STATE::INCHOOSE;
+                m_lobby_state = LOBBY_STATE::INLOBBY;
                 this->load_button(m_lobby_state);
 
                 m_main_client->leave_room();
@@ -128,8 +128,11 @@ void Lobby_State::update()
 
 void Lobby_State::render()
 {
-    if (m_lobby_state == LOBBY_STATE::INCHOOSE)
+    if (m_lobby_state == LOBBY_STATE::INLOBBY)
+    {
         m_windowManager.draw(m_join_server_background);
+        m_main_client->draw(m_windowManager);
+    }
 
     std::for_each(m_buttons.begin(), m_buttons.end(), [&m_windowManager = m_windowManager](auto& _button)
         { _button.second.render(m_windowManager); });
@@ -148,14 +151,14 @@ void Lobby_State::pushState(char data)
 
 void Lobby_State::load_button(LOBBY_STATE _lobby_state)
 {
-    if (_lobby_state == LOBBY_STATE::INCHOOSE)
+    if (_lobby_state == LOBBY_STATE::INLOBBY)
     {
         m_buttons.clear();
 
         m_buttons["RETURN"] = Button(sf::Vector2f(10, (static_cast<float>(m_windowManager.getSize().y) - 125.f) - 10.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Return", "Retour", Button::LANGUAGE::FRENCH, 50);
         m_buttons["CREATE_LOBBY"] = Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Create lobby", "Créer un lobby", Button::LANGUAGE::FRENCH, 50);
     }
-    else if (_lobby_state == LOBBY_STATE::INLOBBY)
+    else if (_lobby_state == LOBBY_STATE::INROOM)
     {
         m_buttons.clear();
 

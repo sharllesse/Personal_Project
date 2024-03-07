@@ -82,6 +82,9 @@ private:
 
 	sf::VertexArray m_aim_line;
 
+	sf::View m_room_button_view;
+	sf::RectangleShape test;
+
 	float m_shoot_timer;
 
 	bool m_shooted;
@@ -127,10 +130,11 @@ public:
 
 	void update(sf::RenderWindow& _window);
 
-	void draw(sf::RenderWindow& _window);
+	void draw(WindowManager& _window);
 
-	void draw_clients(sf::RenderWindow& _window);
-	void draw_projectiles(sf::RenderWindow& _window);
+	void draw_rooms(WindowManager& _window);
+	void draw_clients(WindowManager& _window);
+	void draw_projectiles(WindowManager& _window);
 
 	sf::Vector2f& get_position() { return m_position; }
 	float& get_speed() { return m_speed; }

@@ -34,7 +34,7 @@ void Game_State::render()
 {
     //m_windowManager.getWindow().setView(m_game_view);
 
-    m_main_client->draw(m_windowManager.getWindow());
+    m_main_client->draw(m_windowManager);
 }
 
 void Game_State::pushState(char data)

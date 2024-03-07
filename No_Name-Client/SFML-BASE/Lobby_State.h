@@ -13,8 +13,8 @@ public:
     enum class LOBBY_STATE
     {
         LSNULL = -1,
+        INROOM,
         INLOBBY,
-        INCHOOSE,
         INNAMESELECT
     };
 private:
