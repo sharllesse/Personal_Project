@@ -14,6 +14,7 @@ Lobby_State::Lobby_State(WindowManager& _window, StateList* stackState) : State(
 Lobby_State::~Lobby_State()
 {
     m_buttons.clear();
+    m_main_client.reset();
 }
 
 void Lobby_State::init()
