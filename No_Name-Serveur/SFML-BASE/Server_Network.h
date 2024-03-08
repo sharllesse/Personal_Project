@@ -79,6 +79,8 @@ public:
 	us get_id() const { return m_id; }
 	float get_time_out_timer() const { return m_time_out_timer; }
 	std::string get_name() const { return m_name; }
+	us get_client_count() const { return static_cast<us>(m_clients.size()); }
+	auto& get_clients() { return m_clients; }
 
 #pragma endregion
 
@@ -134,6 +136,7 @@ private:
 
 	bool m_server_closed;
 	bool m_client_want_to_create_room;
+	bool m_client_want_to_join_room;
 
 	float m_sending_timer;
 
@@ -141,7 +144,9 @@ private:
 
 	std::list<std::shared_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Room>> m_rooms;
-	std::list<us> m_clients_ID_to_verify;
+	std::list<us> m_clients_ID_to_verify_create;
+	//CLIENT_ID ROOM_ID ROOM_PORT
+	std::list<std::tuple<us, us, us>> m_clients_ID_to_verify_join;
 	std::list<us> m_clients_IDs;
 public:
 	Server_Network();
@@ -183,7 +188,9 @@ public:
 	/// <para>This function is made to create a room if a client want to.</para>
 	/// <para>The client will be moved to the room and the room will wait for the user to connect.</para>
 	/// </summary>
-	void client_create_room();
+	void clients_create_room();
+
+	void clients_join_room();
 		
 	/// <summary>
 	/// <para>Its just verify if the user is totally disconnected from the server.</para>

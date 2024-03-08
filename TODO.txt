@@ -2,7 +2,12 @@
 - Now give 10 secondes to the room to not be empty otherwise it will be deleted. DONE
 - (Mini task) Put the move the receive to move to a room in a function. DONE
 - When we left the room be reconnected to the main server. DONE
+- Now diplay the room on the board to all the user in the main lobby. DONE
+- Give a user the possibility to join a room. DONE
 - Finish the timed out feature for the client. LATER
 - If the player get timed out but still try to join the player need to be send back to the lobby if the game started. LATER
-- Now diplay the room on the board to all the user in the main lobby. DONE
-- Give a user the possibility to join a room. 
+
+--------------------------- IN ROOM ---------------------------
+- Now need to display all the client that are in the room.
+- Need to do a host system where only a the creator of the roomcan choose to launch (or the client that join after him if the host leave.)
+- And to finish need to add a way to join team (the monster or the survivor).

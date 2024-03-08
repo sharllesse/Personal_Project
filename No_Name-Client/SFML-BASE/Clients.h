@@ -31,6 +31,7 @@ public:
 	enum class CLIENT_STATE
 	{
 		CSNULL = -1,
+		NAMESELECT,
 		LOBBY,
 		ROOM,
 		GAME
@@ -39,15 +40,15 @@ private:
 	struct client_Information
 	{
 		client_Information() : 
-			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::LOBBY)
+			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::NAMESELECT)
 		{}
 
 		client_Information(std::string _IP, us _ID) :
-			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::LOBBY)
+			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::NAMESELECT)
 		{}
 
 		client_Information(std::string _IP, us _ID, bool _is_main_client) :
-			m_IP(_IP), m_disconnected(false), m_ID(_ID), m_client_state(CLIENT_STATE::LOBBY)
+			m_IP(_IP), m_disconnected(false), m_ID(_ID), m_client_state(CLIENT_STATE::NAMESELECT)
 		{
 			m_socket = std::make_unique<sf::TcpSocket>();
 		}
@@ -75,6 +76,7 @@ private:
 	std::list<std::shared_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
+	//NAME ID PORT BUTTON
 	std::vector<std::tuple<std::string, us, us, Button>> m_rooms;
 
 	sf::RectangleShape m_all_clients;
@@ -109,6 +111,7 @@ public:
 	void disconnect_from_lobby();
 
 	void create_room();
+	void join_room(us _id, us _port);
 	void leave_room();
 
 	void room_connection(sf::Packet& _packet);
@@ -128,7 +131,7 @@ public:
 	sf::Socket::Status send_packet(sf::Packet& _packet);
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
-	void update(sf::RenderWindow& _window);
+	void update(sf::RenderWindow& _window, Clients::CLIENT_STATE& _lobby_state);
 
 	void draw(WindowManager& _window);
 

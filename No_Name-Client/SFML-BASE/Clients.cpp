@@ -105,7 +105,7 @@ void Clients::disconnect_from_lobby()
     this->m_selector.remove(*this->m_client_information.m_socket);
     this->m_client_information.m_socket->setBlocking(true);
     this->m_client_information.m_socket->disconnect();
-    this->m_client_information.m_client_state = CLIENT_STATE::LOBBY;
+    this->m_client_information.m_client_state = CLIENT_STATE::NAMESELECT;
 }
 
 void Clients::create_room()
@@ -113,6 +113,15 @@ void Clients::create_room()
     sf::Packet tmp_create_room_packet;
 
     tmp_create_room_packet << Clients::INFO_TYPE_CLIENT_SIDE::CREATE_ROOM;
+
+    this->send_packet(tmp_create_room_packet);
+}
+
+void Clients::join_room(us _id, us _port)
+{
+    sf::Packet tmp_create_room_packet;
+
+    tmp_create_room_packet << Clients::INFO_TYPE_CLIENT_SIDE::JOIN_ROOM << _id << _port;
 
     this->send_packet(tmp_create_room_packet);
 }
@@ -447,37 +456,58 @@ sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
     return this->m_client_information.m_socket->receive(_packet);
 }
 
-void Clients::update(sf::RenderWindow& _window)
+void Clients::update(sf::RenderWindow& _window, Clients::CLIENT_STATE& _lobby_state)
 {
-    m_shoot_timer += Tools::getDeltaTime();
-
-    if (_window.hasFocus())
+    if (m_client_information.m_client_state == CLIENT_STATE::GAME)
     {
-        /*this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
+        m_shoot_timer += Tools::getDeltaTime();
 
-        if (KEY(Z))
-            this->m_position.y -= 200.f * Tools::getDeltaTime();
-
-        if (KEY(S))
-            this->m_position.y += 200.f * Tools::getDeltaTime();
-
-        if (KEY(Q))
-            this->m_position.x -= 200.f * Tools::getDeltaTime();
-
-        if (KEY(D))
-            this->m_position.x += 200.f * Tools::getDeltaTime();
-
-        if (MOUSE(Left) && m_shoot_timer > 0.2f)
+        if (_window.hasFocus())
         {
-            m_shooted = true;
+            this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
 
-            m_shoot_timer = 0.f;
+            if (KEY(Z))
+                this->m_position.y -= 200.f * Tools::getDeltaTime();
+
+            if (KEY(S))
+                this->m_position.y += 200.f * Tools::getDeltaTime();
+
+            if (KEY(Q))
+                this->m_position.x -= 200.f * Tools::getDeltaTime();
+
+            if (KEY(D))
+                this->m_position.x += 200.f * Tools::getDeltaTime();
+
+            if (MOUSE(Left) && m_shoot_timer > 0.2f)
+            {
+                m_shooted = true;
+
+                m_shoot_timer = 0.f;
+            }
+
+            m_rotation = atan2(m_mouse_position.y - m_position.y, m_mouse_position.x - m_position.x) * RAD2DEG;
+
+            this->m_aim_line[0].position = sf::Vector2f(m_position);
+            this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
         }
-        
-        m_rotation = atan2(m_mouse_position.y - m_position.y, m_mouse_position.x - m_position.x) * RAD2DEG;
+    }
+    else if (m_client_information.m_client_state == CLIENT_STATE::LOBBY)
+    {
+        this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window), m_room_button_view);
 
-        this->m_aim_line[0].position = sf::Vector2f(m_position);
-        this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);*/
+        for (auto& room : m_rooms)
+        {
+            std::get<3>(room).update(this->m_mouse_position);
+
+            if (_window.hasFocus())
+            {
+                if (std::get<3>(room).isPressed())
+                {
+                    _lobby_state = CLIENT_STATE::ROOM;
+                    this->join_room(std::get<1>(room), std::get<2>(room));
+                }
+            }
+        }
     }
 }
 

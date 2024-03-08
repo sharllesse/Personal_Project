@@ -7,7 +7,7 @@ Lobby_State::Lobby_State(WindowManager& _window, StateList* stackState) : State(
 {
     GET_MANAGER->loadScene("LOBBY");
 
-    m_lobby_state = LOBBY_STATE::LSNULL;
+    m_lobby_state = Clients::CLIENT_STATE::CSNULL;
     tmp_client_name = "";
 }
 
@@ -18,9 +18,9 @@ Lobby_State::~Lobby_State()
 
 void Lobby_State::init()
 {
-    m_lobby_state = LOBBY_STATE::LSNULL;
+    m_lobby_state = Clients::CLIENT_STATE::CSNULL;
 
-    this->load_button(LOBBY_STATE::INNAMESELECT);
+    this->load_button(Clients::CLIENT_STATE::NAMESELECT);
 
     m_join_server_background.setFillColor(sf::Color(255, 255, 255, 200));
     m_join_server_background.setOutlineColor(sf::Color(255, 255, 255, 150));
@@ -37,11 +37,11 @@ void Lobby_State::update()
         { _button.second.update(m_windowManager.getMousePos<sf::Vector2f>()); });
 
     //If the client click on the "Enter your name" button he will be set to the INNAMESELECT state.
-    if (m_windowManager.getWindow().hasFocus() && m_lobby_state == LOBBY_STATE::LSNULL)
+    if (m_windowManager.getWindow().hasFocus() && m_lobby_state == Clients::CLIENT_STATE::CSNULL)
     {
         if (m_buttons["ENTER_NAME"].isPressed() && m_windowManager.timer() > 0.2f)
         {
-            m_lobby_state = LOBBY_STATE::INNAMESELECT;
+            m_lobby_state = Clients::CLIENT_STATE::NAMESELECT;
 
             m_buttons["ENTER_NAME"].set_locked(true);
             m_windowManager.StopEventUpdate(true);
@@ -55,12 +55,12 @@ void Lobby_State::update()
     if (m_windowManager.getWindow().hasFocus())
     {
         //Here the client enter his name and the moment he confirm his name he go to the INCHOOSE state.
-        if (m_lobby_state == LOBBY_STATE::INNAMESELECT)
+        if (m_lobby_state == Clients::CLIENT_STATE::NAMESELECT)
         {
             m_buttons["ENTER_NAME"].setText(tmp_client_name);
             if (this->enter_name(tmp_client_name, 10, false))
             {
-                m_lobby_state = LOBBY_STATE::INLOBBY;
+                m_lobby_state = Clients::CLIENT_STATE::LOBBY;
                 this->load_button(m_lobby_state);
 
                 m_main_client = std::make_unique<Clients>(tmp_client_name, sf::Vector2f(100.f, 100.f), 200.f);
@@ -79,14 +79,17 @@ void Lobby_State::update()
                 m_windowManager.resetTimer();
             }
         }
-        else if (m_lobby_state == LOBBY_STATE::INLOBBY)
+        else if (m_lobby_state == Clients::CLIENT_STATE::LOBBY)
         {
-            m_main_client->send();
+            m_main_client->update(m_windowManager.getWindow(), m_lobby_state);
+
+            if (m_lobby_state == Clients::CLIENT_STATE::ROOM)
+                this->load_button(m_lobby_state);
 
             //Here we can create our lobby
             if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
             {
-                m_lobby_state = LOBBY_STATE::INROOM;
+                m_lobby_state = Clients::CLIENT_STATE::ROOM;
                 this->load_button(m_lobby_state);
 
                 m_main_client->create_room();
@@ -98,9 +101,9 @@ void Lobby_State::update()
             //Or go back to the name selection part.
             if (m_buttons["RETURN"].isPressed() && m_windowManager.timer() > 0.2f)
             {
-                m_lobby_state = LOBBY_STATE::INNAMESELECT;
+                m_lobby_state = Clients::CLIENT_STATE::NAMESELECT;
                 this->load_button(m_lobby_state);
-                m_lobby_state = LOBBY_STATE::LSNULL;
+                m_lobby_state = Clients::CLIENT_STATE::CSNULL;
                 tmp_client_name = "";
 
                 this->m_main_client->disconnect_from_lobby();
@@ -108,13 +111,13 @@ void Lobby_State::update()
                 m_windowManager.resetTimer();
             }
         }
-        else if (m_lobby_state == LOBBY_STATE::INROOM)
+        else if (m_lobby_state == Clients::CLIENT_STATE::ROOM)
         {
             //When we press create or join lobby we can only quit for now.
             //I need to do the room UI.
             if (m_buttons["QUIT"].isPressed() && m_windowManager.timer() > 0.2f)
             {
-                m_lobby_state = LOBBY_STATE::INLOBBY;
+                m_lobby_state = Clients::CLIENT_STATE::LOBBY;
                 this->load_button(m_lobby_state);
 
                 m_main_client->leave_room();
@@ -128,7 +131,7 @@ void Lobby_State::update()
 
 void Lobby_State::render()
 {
-    if (m_lobby_state == LOBBY_STATE::INLOBBY)
+    if (m_lobby_state == Clients::CLIENT_STATE::LOBBY)
     {
         m_windowManager.draw(m_join_server_background);
         m_main_client->draw(m_windowManager);
@@ -149,22 +152,22 @@ void Lobby_State::pushState(char data)
         m_stackState->push_front(std::make_unique<Game_State>(m_windowManager, m_stackState));
 }
 
-void Lobby_State::load_button(LOBBY_STATE _lobby_state)
+void Lobby_State::load_button(Clients::CLIENT_STATE _lobby_state)
 {
-    if (_lobby_state == LOBBY_STATE::INLOBBY)
+    if (_lobby_state == Clients::CLIENT_STATE::LOBBY)
     {
         m_buttons.clear();
 
         m_buttons["RETURN"] = Button(sf::Vector2f(10, (static_cast<float>(m_windowManager.getSize().y) - 125.f) - 10.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Return", "Retour", Button::LANGUAGE::FRENCH, 50);
         m_buttons["CREATE_LOBBY"] = Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Create lobby", "Créer un lobby", Button::LANGUAGE::FRENCH, 50);
     }
-    else if (_lobby_state == LOBBY_STATE::INROOM)
+    else if (_lobby_state == Clients::CLIENT_STATE::ROOM)
     {
         m_buttons.clear();
 
         m_buttons["QUIT"] = Button((sf::Vector2f(m_windowManager.getSize()) / 2.f) + sf::Vector2f(-225.f, 0.f), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), "Quit", "Quitter", Button::LANGUAGE::FRENCH, 50);
     }
-    else if (_lobby_state == LOBBY_STATE::INNAMESELECT)
+    else if (_lobby_state == Clients::CLIENT_STATE::NAMESELECT)
     {
         m_buttons.clear();
 

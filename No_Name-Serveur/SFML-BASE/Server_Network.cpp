@@ -406,7 +406,7 @@ void Room::join_room(std::shared_ptr<Clients>& _client)
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 Server_Network::Server_Network() :
-	m_sending_timer(0.f), m_server_closed(false), m_client_want_to_create_room(false), m_room_create_count(0u)
+	m_sending_timer(0.f), m_server_closed(false), m_client_want_to_create_room(false), m_client_want_to_join_room(false), m_room_create_count(0u)
 {
 	if (m_listener.listen(PORT) == sf::Socket::Done)
 	{
@@ -587,7 +587,17 @@ void Server_Network::receive()
 						m_client_want_to_create_room = true;
 						m_room_create_count++;
 
-						m_clients_ID_to_verify.push_back(_client->get_client_information().m_ID);
+						m_clients_ID_to_verify_create.push_back(_client->get_client_information().m_ID);
+					}
+					else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::JOIN_ROOM)
+					{
+						us tmp_room_id(0u), tmp_room_port(0u);
+
+						receive_packet >> tmp_room_id >> tmp_room_port;
+
+						m_client_want_to_join_room = true;
+
+						m_clients_ID_to_verify_join.push_back(std::make_tuple(_client->get_client_information().m_ID, tmp_room_id, tmp_room_port));
 					}
 
 					/*if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::TRANSFORM)
@@ -623,7 +633,9 @@ void Server_Network::send()
 	{
 		bool tmp_put_one_time(false);
 
-		this->client_create_room();
+		this->clients_create_room();
+
+		this->clients_join_room();
 
 		//This packet will contain information about the room
 		//to be displayed when the client is in the lobby.
@@ -635,7 +647,7 @@ void Server_Network::send()
 
 		m_rooms.remove_if([&m_console = m_console, &tmp_client_packet](const auto& _room)
 			{
-				if (_room->get_time_out_timer() >= 10.f)
+				if (_room->get_time_out_timer() >= 10.f && !_room->get_client_count())
 				{
 					m_console.add_message("Room [PORT][" + std::to_string(_room->get_port()) + "] [ID][" + std::to_string(_room->get_id()) + "] closed", Console::Message::INFO);
 					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << true;
@@ -656,11 +668,11 @@ void Server_Network::send()
 	}
 }
 
-void Server_Network::client_create_room()
+void Server_Network::clients_create_room()
 {
 	if (m_client_want_to_create_room)
 	{
-		for (auto ID = m_clients_ID_to_verify.begin(); ID != m_clients_ID_to_verify.end(); ID++)
+		for (auto ID = m_clients_ID_to_verify_create.begin(); ID != m_clients_ID_to_verify_create.end(); ID++)
 		{
 			for (auto client = m_clients.begin(); client != m_clients.end();)
 			{
@@ -691,8 +703,64 @@ void Server_Network::client_create_room()
 			}
 		}
 
-		m_clients_ID_to_verify.clear();
+		m_clients_ID_to_verify_create.clear();
 		m_client_want_to_create_room = false;
+	}
+}
+
+void Server_Network::clients_join_room()
+{
+	if (m_client_want_to_join_room)
+	{
+		for (auto ID = m_clients_ID_to_verify_join.begin(); ID != m_clients_ID_to_verify_join.end(); ID++)
+		{
+			for (auto client = m_clients.begin(); client != m_clients.end();)
+			{
+				if (std::get<0>(*ID) == (*client)->get_client_information().m_ID)
+				{
+					auto tmp_room = std::find_if(m_rooms.begin(), m_rooms.end(), [&ID](const auto& _room)
+						{
+							if (_room->get_port() == std::get<2>(*ID))
+								return true;
+							else
+								return false;
+						});
+					
+					if (tmp_room != m_rooms.end())
+					{
+						//And there we display a message about the client that as been disconnected.
+						m_console.add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] disconnected from the menu", Console::Message::INFO);
+
+						sf::Packet tmp_join_room_packet;
+
+						//We send him port that need to connect to.
+						tmp_join_room_packet << Clients::INFO_TYPE_SERVER_SIDE::LOBBY_TO_ROOM_INFORMATION << tmp_room->get()->get_port();
+
+						(*client)->send_packet(tmp_join_room_packet);
+
+						(*client)->is_waiting_for_reconnect() = true;
+
+						m_selector.remove(*(*client)->get_client_information().m_socket);
+
+						//And then we push him in the room to remove him from the main server.
+						tmp_room->get()->get_clients().push_back((*client));
+
+						client = m_clients.erase(client);
+					}
+					else
+					{
+						client++;
+					}
+				}
+				else
+				{
+					client++;
+				}
+			}
+		}
+
+		m_clients_ID_to_verify_join.clear();
+		m_client_want_to_join_room = false;
 	}
 }
 
