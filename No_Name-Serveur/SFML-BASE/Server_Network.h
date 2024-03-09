@@ -70,7 +70,7 @@ public:
 	/// <para>The only two way to get disconnected that the statue of the socket is Disconnected/Error</para>
 	/// </summary>
 	/// <param name="_packet">The packet to be tested when send.</param>
-	void client_disconnection(sf::Packet& _packet);
+	void client_disconnection(sf::Packet& _packet, std::vector<sf::Packet> _packets_to_send);
 #pragma endregion
 
 #pragma region GETTER/SETTER
@@ -83,8 +83,6 @@ public:
 	auto& get_clients() { return m_clients; }
 
 #pragma endregion
-
-	void join_room(std::shared_ptr<Clients>& _client);
 private:
 	sf::SocketSelector m_selector;
 	sf::TcpListener m_listener;
@@ -97,6 +95,7 @@ private:
 	
 	us m_id;
 	us m_port;
+	us m_host_id;
 
 	std::string m_name;
 

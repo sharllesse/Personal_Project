@@ -1,12 +1,12 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false)
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false), m_is_host(false)
 {
 }
 
 Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
-	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, true), m_waiting_for_reconnect(false)
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, true), m_waiting_for_reconnect(false), m_is_host(false)
 {
     m_all_clients.setSize(sf::Vector2f(50, 50));
     m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
@@ -29,7 +29,7 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
 }
 
 Clients::Clients(std::string _name, us _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID, true), m_waiting_for_reconnect(false)
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID, true), m_waiting_for_reconnect(false), m_is_host(false)
 {
 }
 
@@ -233,34 +233,70 @@ void Clients::server_connection(sf::Packet& _packet)
 
 void Clients::clients_information(sf::Packet& _packet)
 {
-    /*INT_TYPE tmp_client_cout(0);
-
-    us tmp_ID(0u);
-    sf::Vector2f tmp_position;
-    float tmp_rotation;
-
-    _packet >> tmp_client_cout;
-
-    for (auto client = m_clients.begin(); client != m_clients.end();)
+    if (m_client_information.m_client_state == CLIENT_STATE::ROOM)
     {
-        _packet >> tmp_ID;
+        INT_TYPE tmp_client_cout(0);
 
-        if (tmp_ID != this->m_client_information.m_ID)
+        us tmp_ID(0u);
+        std::string tmp_name("");
+        bool tmp_is_host(false);
+
+        _packet >> tmp_client_cout;
+
+        for (auto client = m_clients.begin(); client != m_clients.end();)
         {
-            _packet >> (*client)->m_position >> (*client)->m_rotation;
+            _packet >> tmp_ID;
 
-            client++;
-        }
-        else
-        {
-            _packet >> tmp_position >> tmp_rotation;
+            if (tmp_ID != this->m_client_information.m_ID)
+            {
+                _packet >> (*client)->m_name >> (*client)->m_is_host;
+
+                client++;
+            }
+            else
+            {
+                _packet >> tmp_name >> m_is_host;
+            }
+
+            tmp_client_cout--;
         }
 
-        tmp_client_cout--;
+        if (tmp_client_cout != 0)
+            _packet >> tmp_name >> m_is_host;
     }
+    else if (m_client_information.m_client_state == CLIENT_STATE::GAME)
+    {
+        /*
+        INT_TYPE tmp_client_cout(0);
 
-    if (tmp_client_cout != 0)
-        _packet >> tmp_ID >> tmp_position >> tmp_rotation;*/
+        us tmp_ID(0u);
+        sf::Vector2f tmp_position;
+        float tmp_rotation;
+
+        _packet >> tmp_client_cout;
+
+        for (auto client = m_clients.begin(); client != m_clients.end();)
+        {
+            _packet >> tmp_ID;
+
+            if (tmp_ID != this->m_client_information.m_ID)
+            {
+                _packet >> (*client)->m_position >> (*client)->m_rotation;
+
+                client++;
+            }
+            else
+            {
+                _packet >> tmp_position >> tmp_rotation;
+            }
+
+            tmp_client_cout--;
+        }
+
+        if (tmp_client_cout != 0)
+            _packet >> tmp_ID >> tmp_position >> tmp_rotation;
+        */
+    }
 }
 
 void Clients::clients_connected(sf::Packet& _packet)
@@ -282,7 +318,7 @@ void Clients::clients_connected(sf::Packet& _packet)
         _packet >> tmp_name >> tmp_ID >> tmp_IP;
 
         if (this->m_client_information.m_ID != tmp_ID)
-            this->m_clients.push_back(std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP));
+            this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
     }
 
     _packet.clear();
@@ -294,20 +330,20 @@ void Clients::clients_disconnected(sf::Packet& _packet)
 {
     this->m_delete_client.lock();
 
-   /* while (!_packet.endOfPacket())
+    while (!_packet.endOfPacket())
     {
         us tmp_ID(0u);
 
         _packet >> tmp_ID;
 
-        this->m_clients.erase(std::remove_if(this->m_clients.begin(), this->m_clients.end(), [tmp_ID](std::unique_ptr<Clients>& _client)
+        m_clients.remove_if([tmp_ID](auto& _client)
             {
                 if (_client->m_client_information.m_ID == tmp_ID)
                     return true;
                 else
                     return false;
-            }));
-    }*/
+            });
+    }
 
     this->m_delete_client.unlock();
 }
@@ -392,6 +428,14 @@ void Clients::receive()
                     else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION)
                     {
                         this->clients_connected(tmp_receive_packet);
+                    }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::DISCONNECTED_INFORMATION)
+                    {
+                        this->clients_disconnected(tmp_receive_packet);
+                    }
+                    else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::CLIENT_INFORMATION)
+                    {
+                        this->clients_information(tmp_receive_packet);
                     }
                     else if (tmp_info_type == Clients::INFO_TYPE_SERVER_SIDE::ROOM_INFORMATION)
                     {

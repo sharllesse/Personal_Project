@@ -91,6 +91,7 @@ private:
 
 	bool m_shooted;
 	bool m_waiting_for_reconnect;
+	bool m_is_host;
 
 	sf::Vector2f m_position;
 
@@ -140,8 +141,13 @@ public:
 	void draw_projectiles(WindowManager& _window);
 
 	sf::Vector2f& get_position() { return m_position; }
+
 	float& get_speed() { return m_speed; }
 	float& get_rotation() { return m_rotation; }
+
+	bool& is_host() { return m_is_host; }
+
 	std::string& get_name() { return m_name; }
+
 	client_Information& get_client_information() { return m_client_information; }
 };

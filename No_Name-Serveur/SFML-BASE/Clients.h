@@ -51,6 +51,7 @@ private:
 	float m_timed_out_timer;
 
 	bool m_waiting_for_reconnect;
+	bool m_is_host;
 
 	client_Information m_client_information;
 public:
@@ -69,6 +70,7 @@ public:
 	float& get_timed_out_timer() { return m_timed_out_timer; }
 
 	bool& is_waiting_for_reconnect() { return m_waiting_for_reconnect; }
+	bool& is_host() { return m_is_host; }
 
 	client_Information& get_client_information() { return m_client_information; }
 };
