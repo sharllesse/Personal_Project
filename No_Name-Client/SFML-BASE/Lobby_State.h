@@ -15,11 +15,11 @@ private:
     void virtual render();
     void virtual pushState(char data);
 
-    void load_button(Clients::CLIENT_STATE _lobby_state);
+    void load_button(std::shared_ptr<Clients::CLIENT_STATE> _lobby_state);
 
     bool enter_name(std::string& _string, int _max_size, bool _replace_space);
 
-    Clients::CLIENT_STATE m_lobby_state;
+    std::shared_ptr<Clients::CLIENT_STATE> m_lobby_state;
 
     std::unique_ptr<Clients> m_main_client;
 

@@ -107,7 +107,6 @@ void Room::verify_connection()
 			if (tmp_statue == sf::Socket::Done)
 			{
 				sf::Packet receive_packet;
-				sf::Packet send_packet;
 
 				us tmp_id(0u);
 
@@ -115,57 +114,42 @@ void Room::verify_connection()
 				{
 					receive_packet >> tmp_id;
 
-					send_packet << static_cast<INT_TYPE>(m_clients.size());
+					bool tmp_client_has_been_found(false);
 
-					std::for_each(m_clients.begin(), m_clients.end(), [&send_packet](std::shared_ptr<Clients>& _client)
-						{
-							send_packet << _client->get_name() << _client->get_client_information().m_ID << _client->get_client_information().m_IP;
-						});
+					sf::Packet join_packet;
 
-					if (tmp_socket->send(send_packet) == sf::Socket::Done)
+					for (auto client = m_clients.begin(); client != m_clients.end(); client++)
 					{
-						bool tmp_client_has_been_found(false);
-
-						sf::Packet join_packet;
-
-						for (auto client = m_clients.begin(); client != m_clients.end(); client++)
+						if ((*client)->get_client_information().m_ID == tmp_id)
 						{
-							if ((*client)->get_client_information().m_ID == tmp_id)
-							{
-								(*client)->get_client_information().m_socket->disconnect();
-								(*client)->get_client_information().m_socket = std::move(tmp_socket);
+							(*client)->get_client_information().m_socket->disconnect();
+							(*client)->get_client_information().m_socket = std::move(tmp_socket);
 
-								m_main_server_console_ptr->add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] connected to a room", Console::Message::INFO);
+							m_main_server_console_ptr->add_message("Player [NAME][" + (*client)->get_name() + "] [IP][" + (*client)->get_client_information().m_IP + "] [ID][" + std::to_string((*client)->get_client_information().m_ID) + "] connected to a room", Console::Message::INFO);
 
-								(*client)->is_waiting_for_reconnect() = false;
+							(*client)->is_waiting_for_reconnect() = false;
 
-								(*client)->get_client_information().m_socket->setBlocking(false);
-								m_selector.add(*(*client)->get_client_information().m_socket);
+							(*client)->get_client_information().m_socket->setBlocking(false);
+							m_selector.add(*(*client)->get_client_information().m_socket);
 
-								tmp_client_has_been_found = true;
+							tmp_client_has_been_found = true;
 
-								break;
-							}
-						}
-
-						if (tmp_client_has_been_found)
-						{
-							join_packet << Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
-							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::shared_ptr<Clients>& _client)
-								{
-									join_packet << _client->get_name() << _client->get_client_information().m_ID << _client->get_client_information().m_IP;
-								});
-
-							std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::shared_ptr<Clients>& _client)
-								{
-									_client->send_packet(join_packet);
-								});
+							break;
 						}
 					}
-					else
+
+					if (tmp_client_has_been_found)
 					{
-						tmp_socket.reset();
-						m_main_server_console_ptr->add_message("Room [PORT][" + std::to_string(m_port) + "] [ID][" + std::to_string(m_id) + "] failed to send the packet", Console::Message::ERROR);
+						join_packet << Clients::INFO_TYPE_SERVER_SIDE::JOIN_INFORMATION << static_cast<INT_TYPE>(m_clients.size());
+						std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::shared_ptr<Clients>& _client)
+							{
+								join_packet << _client->get_name() << _client->get_client_information().m_ID << _client->get_client_information().m_IP;
+							});
+
+						std::for_each(m_clients.begin(), m_clients.end(), [&join_packet](std::shared_ptr<Clients>& _client)
+							{
+								_client->send_packet(join_packet);
+							});
 					}
 				}
 				else
@@ -246,6 +230,13 @@ void Room::receive()
 						{
 							m_client_want_to_leave_room = true;
 							m_clients_ID_to_verify.push_back(_client->get_client_information().m_ID);
+						}
+						else if (tmp_info_type == Clients::INFO_TYPE_CLIENT_SIDE::KICK_ROOM)
+						{
+							us tmp_id;
+							receive_packet >> tmp_id;
+							m_client_want_to_leave_room = true;
+							m_clients_ID_to_verify.push_back(tmp_id);
 						}
 					}
 				}

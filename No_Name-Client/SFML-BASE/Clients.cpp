@@ -1,12 +1,12 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false), m_is_host(false)
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false)
 {
 }
 
-Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
-	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, true), m_waiting_for_reconnect(false), m_is_host(false)
+Clients::Clients(std::string _name, sf::Vector2f _position, float _speed, std::shared_ptr<Clients::CLIENT_STATE> _client_state_sptr) :
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, _client_state_sptr), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false)
 {
     m_all_clients.setSize(sf::Vector2f(50, 50));
     m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
@@ -29,7 +29,7 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed) :
 }
 
 Clients::Clients(std::string _name, us _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID, true), m_waiting_for_reconnect(false), m_is_host(false)
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false)
 {
 }
 
@@ -74,7 +74,6 @@ bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
                     this->m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
                 }
 
-                this->m_client_information.m_client_state = CLIENT_STATE::LOBBY;
                 this->m_client_information.m_socket->setBlocking(false);
                 this->m_selector.add(*this->m_client_information.m_socket);
 
@@ -105,7 +104,6 @@ void Clients::disconnect_from_lobby()
     this->m_selector.remove(*this->m_client_information.m_socket);
     this->m_client_information.m_socket->setBlocking(true);
     this->m_client_information.m_socket->disconnect();
-    this->m_client_information.m_client_state = CLIENT_STATE::NAMESELECT;
 }
 
 void Clients::create_room()
@@ -135,8 +133,19 @@ void Clients::leave_room()
     this->send_packet(tmp_create_room_packet);
 }
 
+void Clients::kick_client(us _id)
+{
+    sf::Packet tmp_kick_packet;
+
+    tmp_kick_packet << Clients::INFO_TYPE_CLIENT_SIDE::KICK_ROOM << _id;
+
+    this->send_packet(tmp_kick_packet);
+}
+
 void Clients::room_connection(sf::Packet& _packet)
 {
+    m_delete_room.lock();
+
     us tmp_port;
 
     _packet >> tmp_port;
@@ -154,29 +163,16 @@ void Clients::room_connection(sf::Packet& _packet)
 
         if (this->send_packet(tmp_id_packet) == sf::Socket::Done)
         {
-            if (this->receive_packet(receive_packet) == sf::Socket::Done)
-            {
-                INT_TYPE tmp_client_size(0);
+            m_client_plate = client_plate(m_name);
 
-                std::string tmp_name("");
-                us tmp_ID(0u);
-                std::string tmp_IP("");
-
-                receive_packet >> tmp_client_size;
-
-                for (int i = 0; i < tmp_client_size; i++)
-                {
-                    receive_packet >> tmp_name >> tmp_ID >> tmp_IP;
-                    this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
-                }
-
-                m_rooms.clear();
-                m_client_information.m_client_state = CLIENT_STATE::ROOM;
-                m_client_information.m_socket->setBlocking(false);
-                m_selector.add(*m_client_information.m_socket);
-            }
+            m_rooms.clear();
+            m_has_change_state = true;
+            m_client_information.m_socket->setBlocking(false);
+            m_selector.add(*m_client_information.m_socket);
         }
     }
+
+    m_delete_room.unlock();
 
     //PORT
     //IP
@@ -223,7 +219,7 @@ void Clients::server_connection(sf::Packet& _packet)
                     m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
                 }
 
-                m_client_information.m_client_state = CLIENT_STATE::LOBBY;
+                m_has_change_state = true;
                 m_client_information.m_socket->setBlocking(false);
                 m_selector.add(*m_client_information.m_socket);
             }
@@ -233,7 +229,7 @@ void Clients::server_connection(sf::Packet& _packet)
 
 void Clients::clients_information(sf::Packet& _packet)
 {
-    if (m_client_information.m_client_state == CLIENT_STATE::ROOM)
+    if ((*m_client_information.m_client_state) == CLIENT_STATE::ROOM)
     {
         INT_TYPE tmp_client_cout(0);
 
@@ -262,9 +258,9 @@ void Clients::clients_information(sf::Packet& _packet)
         }
 
         if (tmp_client_cout != 0)
-            _packet >> tmp_name >> m_is_host;
+            _packet >> tmp_ID >> tmp_name >> m_is_host;
     }
-    else if (m_client_information.m_client_state == CLIENT_STATE::GAME)
+    else if ((*m_client_information.m_client_state) == CLIENT_STATE::GAME)
     {
         /*
         INT_TYPE tmp_client_cout(0);
@@ -318,7 +314,11 @@ void Clients::clients_connected(sf::Packet& _packet)
         _packet >> tmp_name >> tmp_ID >> tmp_IP;
 
         if (this->m_client_information.m_ID != tmp_ID)
-            this->m_clients.push_back(std::make_shared<Clients>(tmp_name, tmp_ID, tmp_IP));
+        {
+            auto tmp_client = std::make_unique<Clients>(tmp_name, tmp_ID, tmp_IP);
+            tmp_client->m_client_plate = client_plate(tmp_name);
+            this->m_clients.push_back(std::move(tmp_client));
+        }
     }
 
     _packet.clear();
@@ -336,7 +336,7 @@ void Clients::clients_disconnected(sf::Packet& _packet)
 
         _packet >> tmp_ID;
 
-        m_clients.remove_if([tmp_ID](auto& _client)
+        m_clients.remove_if([tmp_ID](const auto& _client)
             {
                 if (_client->m_client_information.m_ID == tmp_ID)
                     return true;
@@ -376,6 +376,8 @@ void Clients::projectiles_information(sf::Packet& _packet)
 
 void Clients::room_information(sf::Packet& _packet)
 {
+    m_delete_room.lock();
+
     us tmp_room_create_count(0u);
     bool tmp_need_to_be_deleted(false);
 
@@ -400,6 +402,8 @@ void Clients::room_information(sf::Packet& _packet)
             room++;
         }
     }
+
+    m_delete_room.unlock();
 }
 
 void Clients::receive()
@@ -500,9 +504,9 @@ sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
     return this->m_client_information.m_socket->receive(_packet);
 }
 
-void Clients::update(sf::RenderWindow& _window, Clients::CLIENT_STATE& _lobby_state)
+void Clients::update(sf::RenderWindow& _window)
 {
-    if (m_client_information.m_client_state == CLIENT_STATE::GAME)
+    if ((*m_client_information.m_client_state) == CLIENT_STATE::GAME)
     {
         m_shoot_timer += Tools::getDeltaTime();
 
@@ -535,10 +539,26 @@ void Clients::update(sf::RenderWindow& _window, Clients::CLIENT_STATE& _lobby_st
             this->m_aim_line[1].position = sf::Vector2f(m_mouse_position);
         }
     }
-    else if (m_client_information.m_client_state == CLIENT_STATE::LOBBY)
+    else if ((*m_client_information.m_client_state) == CLIENT_STATE::ROOM)
+    {
+        this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
+
+        m_delete_client.lock();
+        for (auto& client : m_clients)
+        {
+            client->m_client_plate.m_kick_button.update(this->m_mouse_position);
+            if (client->m_client_plate.m_kick_button.isPressed())
+            {
+                this->kick_client(client->m_client_information.m_ID);
+            }
+        }
+        m_delete_client.unlock();
+    }
+    else if ((*m_client_information.m_client_state) == CLIENT_STATE::LOBBY)
     {
         this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window), m_room_button_view);
 
+        m_delete_room.lock();
         for (auto& room : m_rooms)
         {
             std::get<3>(room).update(this->m_mouse_position);
@@ -547,20 +567,25 @@ void Clients::update(sf::RenderWindow& _window, Clients::CLIENT_STATE& _lobby_st
             {
                 if (std::get<3>(room).isPressed())
                 {
-                    _lobby_state = CLIENT_STATE::ROOM;
                     this->join_room(std::get<1>(room), std::get<2>(room));
                 }
             }
         }
+        m_delete_room.unlock();
     }
 }
 
 void Clients::draw(WindowManager& _window)
 {
-    if (m_client_information.m_client_state == CLIENT_STATE::LOBBY)
+    if ((*m_client_information.m_client_state) == CLIENT_STATE::LOBBY)
+    {
         this->draw_rooms(_window);
-
-    if (m_client_information.m_client_state == CLIENT_STATE::GAME)
+    }
+    else if ((*m_client_information.m_client_state) == CLIENT_STATE::ROOM)
+    {
+        this->draw_clients_plate(_window);
+    }
+    else if ((*m_client_information.m_client_state) == CLIENT_STATE::GAME)
     {
         this->draw_clients(_window);
         this->draw_projectiles(_window);
@@ -570,21 +595,18 @@ void Clients::draw(WindowManager& _window)
 
 void Clients::draw_rooms(WindowManager& _window)
 {
+    m_delete_room.lock();
+
     _window.getWindow().setView(m_room_button_view);
 
     for (auto& room : m_rooms)
     {
         std::get<3>(room).render(_window);
     }
-    //test.setSize(sf::Vector2f(1920, 1080));
-    //test.setFillColor(sf::Color::Black);
-    //_window.draw(test);
-
-    //test.setSize(sf::Vector2f(100, 100));
-    //test.setFillColor(sf::Color::White);
-    //_window.draw(test);
 
     _window.getWindow().setView(_window.getWindow().getDefaultView());
+
+    m_delete_room.unlock();
 }
 
 void Clients::draw_clients(WindowManager& _window)
@@ -618,4 +640,35 @@ void Clients::draw_projectiles(WindowManager& _window)
             _window.draw(m_all_projectiles);
         });*/
     m_delete_projectiles.unlock();
+}
+
+void Clients::draw_clients_plate(WindowManager& _window)
+{
+    m_delete_client.lock();
+
+    us tmp_index(1u);
+    for (auto& client : m_clients)
+    {
+        client->m_client_plate.set_position(sf::Vector2f(50.f, 50.f + ((client->m_client_plate.m_plate_background.getSize().y + 10.f) * tmp_index)));
+
+        if (m_is_host)
+            client->m_client_plate.m_kick_button.render(_window);
+        else if (client->m_is_host)
+            _window.draw(client->m_client_plate.m_crown_icon);
+
+        _window.draw(client->m_client_plate.m_plate_background);
+        _window.draw(client->m_client_plate.m_plate_name);
+
+        tmp_index++;
+    }
+
+    m_client_plate.set_position(sf::Vector2f(50.f, 50.f));
+
+    if (m_is_host)
+        _window.draw(m_client_plate.m_crown_icon);
+
+    _window.draw(m_client_plate.m_plate_background);
+    _window.draw(m_client_plate.m_plate_name);
+
+    m_delete_client.unlock();
 }

@@ -29,10 +29,12 @@ private:
 	sf::RectangleShape m_button_shape;
 	sf::Text m_button_text;
 	bool m_locked;
+	bool m_shape_only;
 
 public:
 	Button();
 	Button(sf::Vector2f _position, sf::Vector2f _size, const sf::Font& _font, std::string _english_text, std::string _french_text, LANGUAGE _language, int _font_size = 25, bool _locked = false);
+	Button(sf::Vector2f _position, sf::Vector2f _size, const sf::Texture& _texture, sf::Color _shape_color = sf::Color::White, bool _locked = false);
 	~Button();
 
 	////////////////////////////////////////////////////////////

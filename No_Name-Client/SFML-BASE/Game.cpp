@@ -7,6 +7,10 @@ Game::Game() : m_windowManager()
 
 Game::Game(int width, int height, std::string title, bool fullscreen) : m_windowManager(width, height, title, fullscreen)
 {
+    m_fps_counter_font.loadFromFile("../Ressources/ALL/FONTS/arial.ttf");
+    m_fps_counter.setFont(m_fps_counter_font);
+    m_fps_counter.setCharacterSize(20u);
+    m_fps_counter.setFillColor(sf::Color::Green);
 }
 
 Game::~Game()
@@ -17,6 +21,7 @@ Game::~Game()
 void Game::update()
 {
     Tools::restartClock();
+    m_fps_counter.setString(std::to_string(static_cast<int>(Tools::frameRate())));
 
     m_windowManager.EventUpdate();
     if (!m_state.empty())
@@ -48,6 +53,8 @@ void Game::render()
         m_state.front().get()->render();
     else if (!GET_MANAGER->IsReady() or !m_state.front().get()->getIsReady())
         GET_MANAGER->showLoadingScreen(m_windowManager.getWindow());
+
+    m_windowManager.draw(m_fps_counter);
     m_windowManager.display();
 }
 

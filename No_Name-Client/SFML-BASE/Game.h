@@ -6,6 +6,8 @@ class Game
 {
 	WindowManager m_windowManager;
     StateList m_state;
+    sf::Font m_fps_counter_font;
+    sf::Text m_fps_counter;
 
     void update();
     void render();

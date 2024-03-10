@@ -3,7 +3,7 @@
 #include "Button.h"
 
 Button::Button() : 
-	m_button_state(BUTTON_STATE::BSNULL), m_locked(false)
+	m_button_state(BUTTON_STATE::BSNULL), m_locked(false), m_shape_only(false)
 {
 }
 
@@ -11,6 +11,7 @@ Button::Button(sf::Vector2f _position, sf::Vector2f _size, const sf::Font& _font
 {
 	m_button_state = BUTTON_STATE::BUTTON_IDLE;
 	m_locked = _locked;
+	m_shape_only = false;
 
 	this->m_button_shape.setSize(_size);
 	this->m_button_shape.setPosition(_position);
@@ -27,6 +28,18 @@ Button::Button(sf::Vector2f _position, sf::Vector2f _size, const sf::Font& _font
 	);
 
 	this->m_button_text.setFillColor(button_idle_color);
+}
+
+Button::Button(sf::Vector2f _position, sf::Vector2f _size, const sf::Texture& _texture, sf::Color _shape_color, bool _locked)
+{
+	m_button_state = BUTTON_STATE::BUTTON_IDLE;
+	m_locked = _locked;
+	m_shape_only = true;
+
+	this->m_button_shape.setSize(_size);
+	this->m_button_shape.setPosition(_position);
+	this->m_button_shape.setFillColor(_shape_color);
+	this->m_button_shape.setTexture(&_texture);
 }
 
 Button::~Button()
@@ -49,11 +62,13 @@ const bool Button::isPressed() const
 void Button::setPosition(sf::Vector2f _position)
 {
 	this->m_button_shape.setPosition(_position);
-	this->m_button_text.setPosition
-	(
-		this->m_button_shape.getPosition().x + (this->m_button_shape.getGlobalBounds().width / 2.f) - this->m_button_text.getGlobalBounds().width / 2.f - this->m_button_text.getLetterSpacing(),
-		this->m_button_shape.getPosition().y + (this->m_button_shape.getGlobalBounds().height / 2.f) - this->m_button_text.getGlobalBounds().height / 1.25f - this->m_button_text.getLineSpacing()
-	);
+
+	if (!this->m_shape_only)
+		this->m_button_text.setPosition
+		(
+			this->m_button_shape.getPosition().x + (this->m_button_shape.getGlobalBounds().width / 2.f) - this->m_button_text.getGlobalBounds().width / 2.f - this->m_button_text.getLetterSpacing(),
+			this->m_button_shape.getPosition().y + (this->m_button_shape.getGlobalBounds().height / 2.f) - this->m_button_text.getGlobalBounds().height / 1.25f - this->m_button_text.getLineSpacing()
+		);
 }
 
 void Button::setSize(sf::Vector2f size)
@@ -89,7 +104,9 @@ void Button::update(const sf::Vector2f _mouse_position)
 					//GET_MANAGER->playSound("menu_selection");
 				}
 				this->m_button_state = BUTTON_STATE::BUTTON_PRESSED;
-				this->m_button_text.setFillColor(button_active_color);
+
+				if (this->m_shape_only)
+					this->m_button_text.setFillColor(button_active_color);
 			}
 			else if (this->m_button_shape.getGlobalBounds().contains(_mouse_position))
 			{
@@ -98,12 +115,16 @@ void Button::update(const sf::Vector2f _mouse_position)
 					//GET_MANAGER->playSound("menu_navigation");
 				}
 				this->m_button_state = BUTTON_STATE::BUTTON_HOVER;
-				this->m_button_text.setFillColor(button_hover_color);
+
+				if (this->m_shape_only)
+					this->m_button_text.setFillColor(button_hover_color);
 			}
 			else
 			{
 				this->m_button_state = BUTTON_STATE::BUTTON_IDLE;
-				this->m_button_text.setFillColor(button_idle_color);
+
+				if (this->m_shape_only)
+					this->m_button_text.setFillColor(button_idle_color);
 			}
 		}
 	}
@@ -114,6 +135,8 @@ void Button::render(WindowManager& _window)
 	if (this != nullptr)
 	{
 		_window.draw(this->m_button_shape);
-		_window.draw(this->m_button_text);
+
+		if (!this->m_shape_only)
+			_window.draw(this->m_button_text);
 	}
 }

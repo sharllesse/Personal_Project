@@ -12,7 +12,8 @@ public:
 		SHOOT,
 		CREATE_ROOM,
 		JOIN_ROOM,
-		LEAVE_ROOM
+		LEAVE_ROOM,
+		KICK_ROOM
 	};
 
 	enum INFO_TYPE_SERVER_SIDE
@@ -40,15 +41,15 @@ private:
 	struct client_Information
 	{
 		client_Information() : 
-			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::NAMESELECT)
+			m_IP(""), m_disconnected(false), m_ID(0u)
 		{}
 
 		client_Information(std::string _IP, us _ID) :
-			m_IP(""), m_disconnected(false), m_ID(0u), m_client_state(CLIENT_STATE::NAMESELECT)
+			m_IP(_IP), m_disconnected(false), m_ID(_ID)
 		{}
 
-		client_Information(std::string _IP, us _ID, bool _is_main_client) :
-			m_IP(_IP), m_disconnected(false), m_ID(_ID), m_client_state(CLIENT_STATE::NAMESELECT)
+		client_Information(std::string _IP, us _ID, std::shared_ptr<CLIENT_STATE> _client_ptr) :
+			m_IP(_IP), m_disconnected(false), m_ID(_ID), m_client_state(_client_ptr)
 		{
 			m_socket = std::make_unique<sf::TcpSocket>();
 		}
@@ -58,7 +59,51 @@ private:
 		std::string m_IP;
 		bool m_disconnected;
 
-		CLIENT_STATE m_client_state;
+		std::shared_ptr<CLIENT_STATE> m_client_state;
+	};
+
+	struct client_plate
+	{
+		client_plate()
+		{}
+
+		client_plate(std::string _name, sf::Vector2f _position = sf::Vector2f())
+		{
+			m_kick_button = Button(sf::Vector2f(_position + sf::Vector2f(500.f, 32.5f)), sf::Vector2f(40.f, 40.f), GET_MANAGER->getTexture(""));
+
+			m_crown_icon.setPosition(_position + sf::Vector2f(500.f, 32.5f));
+			m_crown_icon.setSize(sf::Vector2f(60.f, 60.f));
+			m_crown_icon.setTexture(&GET_MANAGER->getTexture(""));
+
+			m_plate_background.setPosition(_position);
+			m_plate_background.setSize(sf::Vector2f(450.f, 125.f));
+			m_plate_background.setFillColor(sf::Color(150u, 150u, 150u, 255u));
+			m_plate_background.setOutlineThickness(3.f);
+			m_plate_background.setOutlineColor(sf::Color(100u, 100u, 100u, 255u));
+
+			m_plate_name.setCharacterSize(50u);
+			m_plate_name.setFont(GET_MANAGER->getFont("arial"));
+			m_plate_name.setString(_name);
+		}
+
+		void set_position(sf::Vector2f _position)
+		{
+			m_kick_button.setPosition(_position + sf::Vector2f(500.f, 32.5f));
+			m_crown_icon.setPosition(_position + sf::Vector2f(500.f, 32.5f));
+			m_plate_background.setPosition(_position);
+			m_plate_name.setPosition(
+				m_plate_background.getPosition().x + (m_plate_background.getGlobalBounds().width / 2.f) - m_plate_name.getGlobalBounds().width / 2.f - m_plate_name.getLetterSpacing(),
+				m_plate_background.getPosition().y + (m_plate_background.getGlobalBounds().height / 2.f) - m_plate_name.getGlobalBounds().height / 1.25f - m_plate_name.getLineSpacing()
+			);
+		}
+
+		Button m_kick_button;
+
+		sf::RectangleShape m_crown_icon;
+
+		sf::RectangleShape m_plate_background;
+		sf::Text m_plate_name;
+		
 	};
 
 	sf::SocketSelector m_selector;
@@ -66,6 +111,7 @@ private:
 	std::thread m_receive_thread;
 	std::mutex m_delete_client;
 	std::mutex m_delete_projectiles;
+	std::mutex m_delete_room;
 
 	float m_sending_timer;
 
@@ -73,7 +119,7 @@ private:
 
 	sf::Vector2f m_mouse_position;
 
-	std::list<std::shared_ptr<Clients>> m_clients;
+	std::list<std::unique_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
 	//NAME ID PORT BUTTON
@@ -92,6 +138,7 @@ private:
 	bool m_shooted;
 	bool m_waiting_for_reconnect;
 	bool m_is_host;
+	bool m_has_change_state;
 
 	sf::Vector2f m_position;
 
@@ -101,9 +148,10 @@ private:
 	std::string m_name;
 
 	client_Information m_client_information;
+	client_plate m_client_plate;
 public:
 	Clients();
-	Clients(std::string _name, sf::Vector2f _position, float _speed);
+	Clients(std::string _name, sf::Vector2f _position, float _speed, std::shared_ptr<Clients::CLIENT_STATE> _client_state_sptr);
 	Clients(std::string _name, us _ID, std::string _IP);
 	~Clients();
 
@@ -114,6 +162,7 @@ public:
 	void create_room();
 	void join_room(us _id, us _port);
 	void leave_room();
+	void kick_client(us _id);
 
 	void room_connection(sf::Packet& _packet);
 	void server_connection(sf::Packet& _packet);
@@ -132,13 +181,14 @@ public:
 	sf::Socket::Status send_packet(sf::Packet& _packet);
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
-	void update(sf::RenderWindow& _window, Clients::CLIENT_STATE& _lobby_state);
+	void update(sf::RenderWindow& _window);
 
 	void draw(WindowManager& _window);
 
 	void draw_rooms(WindowManager& _window);
 	void draw_clients(WindowManager& _window);
 	void draw_projectiles(WindowManager& _window);
+	void draw_clients_plate(WindowManager& _window);
 
 	sf::Vector2f& get_position() { return m_position; }
 
@@ -146,6 +196,18 @@ public:
 	float& get_rotation() { return m_rotation; }
 
 	bool& is_host() { return m_is_host; }
+	bool change_state(Clients::CLIENT_STATE _new_state) 
+	{ 
+		if (m_has_change_state)
+		{
+			(*m_client_information.m_client_state) = _new_state;
+			m_has_change_state = false;
+
+			return true;
+		}
+
+		return false;
+	}
 
 	std::string& get_name() { return m_name; }
 
