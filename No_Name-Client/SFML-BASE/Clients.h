@@ -122,8 +122,8 @@ private:
 	std::list<std::unique_ptr<Clients>> m_clients;
 	std::list<std::unique_ptr<Projectile>> m_projectiles;
 
-	//NAME ID PORT BUTTON
-	std::vector<std::tuple<std::string, us, us, Button>> m_rooms;
+	//NAME ID PORT CLIENT_COUNT BUTTON
+	std::vector<std::tuple<std::string, us, us, INT_TYPE, Button>> m_rooms;
 
 	sf::RectangleShape m_all_clients;
 	sf::CircleShape m_all_projectiles;

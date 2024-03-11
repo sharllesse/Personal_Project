@@ -65,13 +65,14 @@ bool Clients::connect_to_lobby(std::string _IP, us _port, float _time_out)
                 std::string tmp_name("");
                 us tmp_ID(0u);
                 us tmp_PORT(0u);
+                INT_TYPE tmp_client_count(0);
 
                 receive_packet >> this->m_client_information.m_ID >> tmp_room_size;
 
                 for (int i = 0; i < tmp_room_size; i++)
                 {
-                    receive_packet >> tmp_name >> tmp_ID >> tmp_PORT;
-                    this->m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_PORT >> tmp_client_count;
+                    this->m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, tmp_client_count, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
                 }
 
                 this->m_client_information.m_socket->setBlocking(false);
@@ -210,13 +211,14 @@ void Clients::server_connection(sf::Packet& _packet)
                 std::string tmp_name("");
                 us tmp_ID(0u);
                 us tmp_PORT(0u);
+                INT_TYPE tmp_client_count(0);
 
                 receive_packet >> tmp_room_size;
 
                 for (int i = 0; i < tmp_room_size; i++)
                 {
-                    receive_packet >> tmp_name >> tmp_ID >> tmp_PORT;
-                    m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
+                    receive_packet >> tmp_name >> tmp_ID >> tmp_PORT >> tmp_client_count;
+                    m_rooms.push_back(std::make_tuple(tmp_name, tmp_ID, tmp_PORT, tmp_client_count, Button(sf::Vector2f(10, 10), sf::Vector2f(450.f, 125.f), GET_MANAGER->getFont("arial"), tmp_name, tmp_name, Button::LANGUAGE::FRENCH, 50)));
                 }
 
                 m_has_change_state = true;
@@ -384,21 +386,24 @@ void Clients::room_information(sf::Packet& _packet)
     _packet >> tmp_room_create_count;
 
     for (int i = 0; i < tmp_room_create_count; i++)
-        m_rooms.push_back(std::make_tuple("", 0u, 0u, Button(sf::Vector2f(0.f, 0.f), sf::Vector2f(600.f, 125.f), GET_MANAGER->getFont("arial"), "", "", Button::LANGUAGE::FRENCH, 50)));
+        m_rooms.push_back(std::make_tuple("", 0u, 0u, 0,Button(sf::Vector2f(0.f, 0.f), sf::Vector2f(600.f, 125.f), GET_MANAGER->getFont("arial"), "", "", Button::LANGUAGE::FRENCH, 50)));
 
     us tmp_position_decal(0u);
+    INT_TYPE tmp_client_count(0u);
     for (auto room = m_rooms.begin(); room < m_rooms.end();)
     {
-        _packet >> std::get<0>(*room) >> std::get<1>(*room) >> std::get<2>(*room) >> tmp_need_to_be_deleted;
+        _packet >> std::get<0>(*room) >> std::get<1>(*room) >> std::get<2>(*room) >> std::get<3>(*room) >> tmp_need_to_be_deleted;
 
-        std::get<3>(*room).setText(std::get<0>(*room));
-        std::get<3>(*room).setPosition(sf::Vector2f(0.f, (std::get<3>(*room).getSize().y + 10.f) * tmp_position_decal));
+        std::get<4>(*room).setText(std::get<0>(*room) + " Player : " + std::to_string(std::get<3>(*room)) + "/5");
+        std::get<4>(*room).setPosition(sf::Vector2f(0.f, (std::get<4>(*room).getSize().y + 10.f) * tmp_position_decal));
 
         if (tmp_need_to_be_deleted)
             room = m_rooms.erase(room);
         else
         {
-            tmp_position_decal++;
+            if (std::get<3>(*room) < 5)
+                tmp_position_decal++;
+
             room++;
         }
     }
@@ -561,11 +566,12 @@ void Clients::update(sf::RenderWindow& _window)
         m_delete_room.lock();
         for (auto& room : m_rooms)
         {
-            std::get<3>(room).update(this->m_mouse_position);
-
+            if (std::get<3>(room) < 5)
+                std::get<4>(room).update(this->m_mouse_position);
+            
             if (_window.hasFocus())
             {
-                if (std::get<3>(room).isPressed())
+                if (std::get<4>(room).isPressed())
                 {
                     this->join_room(std::get<1>(room), std::get<2>(room));
                 }
@@ -601,7 +607,7 @@ void Clients::draw_rooms(WindowManager& _window)
 
     for (auto& room : m_rooms)
     {
-        std::get<3>(room).render(_window);
+        std::get<4>(room).render(_window);
     }
 
     _window.getWindow().setView(_window.getWindow().getDefaultView());

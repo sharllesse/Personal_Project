@@ -532,7 +532,7 @@ void Server_Network::verify_connection()
 
 							std::for_each(m_rooms.begin(), m_rooms.end(), [&send_packet](const auto& _room)
 								{
-									send_packet << _room->get_name() << _room->get_id() << _room->get_port();
+									send_packet << _room->get_name() << _room->get_id() << _room->get_port() << static_cast<INT_TYPE>(_room->get_clients().size());
 								});
 
 							if ((*client)->send_packet(send_packet) == sf::Socket::Done)
@@ -556,7 +556,7 @@ void Server_Network::verify_connection()
 
 					std::for_each(m_rooms.begin(), m_rooms.end(), [&send_packet](const auto& _room)
 						{
-							send_packet << _room->get_name() << _room->get_id() << _room->get_port();
+							send_packet << _room->get_name() << _room->get_id() << _room->get_port() << static_cast<INT_TYPE>(_room->get_clients().size());
 						});
 
 					if (tmp_client->send_packet(send_packet) == sf::Socket::Done)
@@ -682,12 +682,12 @@ void Server_Network::send()
 				if (_room->get_time_out_timer() >= 10.f && !_room->get_client_count())
 				{
 					m_console.add_message("Room [PORT][" + std::to_string(_room->get_port()) + "] [ID][" + std::to_string(_room->get_id()) + "] closed", Console::Message::INFO);
-					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << true;
+					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << static_cast<INT_TYPE>(_room->get_clients().size()) << true;
 					return true;
 				}
 				else
 				{
-					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << false;
+					tmp_client_packet << _room->get_name() << _room->get_id() << _room->get_port() << static_cast<INT_TYPE>(_room->get_clients().size()) << false;
 					return false;
 				}
 			});
