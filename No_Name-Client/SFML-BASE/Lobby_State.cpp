@@ -81,10 +81,13 @@ void Lobby_State::update()
         }
         else if ((*m_lobby_state) == Clients::CLIENT_STATE::LOBBY)
         {
-            m_main_client->update(m_windowManager.getWindow());
+            m_main_client->update(m_windowManager);
 
             if (m_main_client->change_state(Clients::CLIENT_STATE::ROOM))
+            {
+                m_windowManager.StopEventUpdate(false);
                 this->load_button(m_lobby_state);
+            }
 
             //Here we can create our lobby
             if (m_buttons["CREATE_LOBBY"].isPressed() && m_windowManager.timer() > 0.2f)
@@ -110,10 +113,13 @@ void Lobby_State::update()
         }
         else if ((*m_lobby_state) == Clients::CLIENT_STATE::ROOM)
         {
-            m_main_client->update(m_windowManager.getWindow());
+            m_main_client->update(m_windowManager);
 
             if (m_main_client->change_state(Clients::CLIENT_STATE::LOBBY))
+            {
+                m_windowManager.StopEventUpdate(true);
                 this->load_button(m_lobby_state);
+            }
 
             //When we press create or join lobby we can only quit for now.
             //I need to do the room UI.

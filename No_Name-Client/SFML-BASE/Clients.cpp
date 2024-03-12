@@ -1,12 +1,12 @@
 #include "Clients.h"
 
 Clients::Clients() :
-	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false)
+	m_name("No Name"), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false), m_can_scroll_up(false), m_can_scroll_down(false)
 {
 }
 
 Clients::Clients(std::string _name, sf::Vector2f _position, float _speed, std::shared_ptr<Clients::CLIENT_STATE> _client_state_sptr) :
-	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, _client_state_sptr), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false)
+	m_name(_name), m_position(_position), m_speed(_speed), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(std::string(""), 0u, _client_state_sptr), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false), m_can_scroll_up(false), m_can_scroll_down(false)
 {
     m_all_clients.setSize(sf::Vector2f(50, 50));
     m_all_clients.setOrigin(m_all_clients.getSize() / 2.f);
@@ -29,7 +29,7 @@ Clients::Clients(std::string _name, sf::Vector2f _position, float _speed, std::s
 }
 
 Clients::Clients(std::string _name, us _ID, std::string _IP) :
-	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false)
+	m_name(_name), m_speed(0.f), m_sending_timer(0.f), m_game_is_finish(false), m_shooted(false), m_shoot_timer(0.f), m_rotation(0.f), m_client_information(_IP, _ID), m_waiting_for_reconnect(false), m_is_host(false), m_has_change_state(false), m_can_scroll_up(false), m_can_scroll_down(false)
 {
 }
 
@@ -509,15 +509,15 @@ sf::Socket::Status Clients::receive_packet(sf::Packet& _packet)
     return this->m_client_information.m_socket->receive(_packet);
 }
 
-void Clients::update(sf::RenderWindow& _window)
+void Clients::update(WindowManager& _window)
 {
     if ((*m_client_information.m_client_state) == CLIENT_STATE::GAME)
     {
         m_shoot_timer += Tools::getDeltaTime();
 
-        if (_window.hasFocus())
+        if (_window.getWindow().hasFocus())
         {
-            this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
+            this->m_mouse_position = _window.getMousePos<sf::Vector2f>();
 
             if (KEY(Z))
                 this->m_position.y -= 200.f * Tools::getDeltaTime();
@@ -546,7 +546,7 @@ void Clients::update(sf::RenderWindow& _window)
     }
     else if ((*m_client_information.m_client_state) == CLIENT_STATE::ROOM)
     {
-        this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window));
+        this->m_mouse_position = _window.getMousePos<sf::Vector2f>();
 
         m_delete_client.lock();
         for (auto& client : m_clients)
@@ -561,15 +561,25 @@ void Clients::update(sf::RenderWindow& _window)
     }
     else if ((*m_client_information.m_client_state) == CLIENT_STATE::LOBBY)
     {
-        this->m_mouse_position = _window.mapPixelToCoords(sf::Mouse::getPosition(_window), m_room_button_view);
+        this->m_mouse_position = _window.getWindow().mapPixelToCoords(sf::Mouse::getPosition(_window.getWindow()), m_room_button_view);
 
         m_delete_room.lock();
+
+        m_can_scroll_up = false;
+        m_can_scroll_down = false;
+
         for (auto& room : m_rooms)
         {
+            if (std::get<4>(room).getPosition().y < m_room_button_view.getCenter().y - (m_room_button_view.getSize().y / 2.f))
+                m_can_scroll_up = true;
+
+            if (std::get<4>(room).getPosition().y + std::get<4>(room).getSize().y > m_room_button_view.getCenter().y + (m_room_button_view.getSize().y / 2.f))
+                m_can_scroll_down = true;
+
             if (std::get<3>(room) < 5)
                 std::get<4>(room).update(this->m_mouse_position);
             
-            if (_window.hasFocus())
+            if (_window.getWindow().hasFocus())
             {
                 if (std::get<4>(room).isPressed())
                 {
@@ -577,7 +587,10 @@ void Clients::update(sf::RenderWindow& _window)
                 }
             }
         }
+
         m_delete_room.unlock();
+
+        this->scroll_room(_window, 50.f);
     }
 }
 
@@ -607,7 +620,9 @@ void Clients::draw_rooms(WindowManager& _window)
 
     for (auto& room : m_rooms)
     {
-        std::get<4>(room).render(_window);
+        if (std::get<4>(room).getPosition().y + std::get<4>(room).getSize().y > m_room_button_view.getCenter().y - (m_room_button_view.getSize().y / 2.f) ||
+            std::get<4>(room).getPosition().y < m_room_button_view.getCenter().y + (m_room_button_view.getSize().y / 2.f))
+            std::get<4>(room).render(_window);
     }
 
     _window.getWindow().setView(_window.getWindow().getDefaultView());
@@ -677,4 +692,24 @@ void Clients::draw_clients_plate(WindowManager& _window)
     _window.draw(m_client_plate.m_plate_name);
 
     m_delete_client.unlock();
+}
+
+void Clients::scroll_room(WindowManager& _window, float _speed)
+{
+    while (_window.pollEvent())
+    {
+        if (_window.getEvent().type == sf::Event::MouseWheelScrolled)
+        {
+            if (_window.getEvent().mouseWheelScroll.delta > 0 && m_can_scroll_up) //UP
+            {
+                m_room_button_view.setCenter(sf::Vector2f(m_room_button_view.getCenter().x, m_room_button_view.getCenter().y - _speed));
+            }
+            else if (_window.getEvent().mouseWheelScroll.delta < 0 && m_can_scroll_down) //DOWN
+            {
+                m_room_button_view.setCenter(sf::Vector2f(m_room_button_view.getCenter().x, m_room_button_view.getCenter().y + _speed));
+            }
+        }
+        else if (_window.getEvent().type == sf::Event::Closed)
+            _window.getWindow().close();
+    }
 }

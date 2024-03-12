@@ -139,6 +139,8 @@ private:
 	bool m_waiting_for_reconnect;
 	bool m_is_host;
 	bool m_has_change_state;
+	bool m_can_scroll_up;
+	bool m_can_scroll_down;
 
 	sf::Vector2f m_position;
 
@@ -181,7 +183,7 @@ public:
 	sf::Socket::Status send_packet(sf::Packet& _packet);
 	sf::Socket::Status receive_packet(sf::Packet& _packet);
 
-	void update(sf::RenderWindow& _window);
+	void update(WindowManager& _window);
 
 	void draw(WindowManager& _window);
 
@@ -189,6 +191,8 @@ public:
 	void draw_clients(WindowManager& _window);
 	void draw_projectiles(WindowManager& _window);
 	void draw_clients_plate(WindowManager& _window);
+
+	void scroll_room(WindowManager& _window, float _speed);
 
 	sf::Vector2f& get_position() { return m_position; }
 

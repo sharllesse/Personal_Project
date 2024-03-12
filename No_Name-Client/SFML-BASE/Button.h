@@ -82,8 +82,9 @@ public:
 	////////////////////////////////////////////////////////////
 	void render(WindowManager& _window);
 
-	BUTTON_STATE& getButtonState() { return m_button_state; }
-	sf::Vector2f getSize() { return m_button_shape.getSize(); }
+	inline BUTTON_STATE& getButtonState() { return m_button_state; }
+	inline sf::Vector2f getSize() { return m_button_shape.getSize(); }
+	inline sf::Vector2f getPosition() { return m_button_shape.getPosition(); }
 };
 
 typedef std::map<std::string, Button> Button_map;
